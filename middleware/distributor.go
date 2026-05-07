@@ -51,6 +51,10 @@ func Distribute() func(c *gin.Context) {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
 			}
+			if !constant.IsSupportedChannelType(channel.Type) {
+				abortWithOpenAiMessage(c, http.StatusBadRequest, fmt.Sprintf("unsupported channel type: %d", channel.Type), types.ErrorCodeInvalidApiType)
+				return
+			}
 		} else {
 			// Select a channel for the user
 			// check token model mapping
@@ -152,11 +156,18 @@ func Distribute() func(c *gin.Context) {
 						abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorNoAvailableChannel, map[string]any{"Group": usingGroup, "Model": modelRequest.Model}), types.ErrorCodeModelNotFound)
 						return
 					}
+					if !constant.IsSupportedChannelType(channel.Type) {
+						abortWithOpenAiMessage(c, http.StatusBadRequest, fmt.Sprintf("unsupported channel type: %d", channel.Type), types.ErrorCodeInvalidApiType)
+						return
+					}
 				}
 			}
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
-		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		if setupErr := SetupContextForSelectedChannel(c, channel, modelRequest.Model); setupErr != nil {
+			abortWithOpenAiMessage(c, setupErr.StatusCode, setupErr.Error(), setupErr.GetErrorCode())
+			return
+		}
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
@@ -346,6 +357,14 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	c.Set("original_model", modelName) // for retry
 	if channel == nil {
 		return types.NewError(errors.New("channel is nil"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+	}
+	if !constant.IsSupportedChannelType(channel.Type) {
+		return types.NewErrorWithStatusCode(
+			fmt.Errorf("unsupported channel type: %d", channel.Type),
+			types.ErrorCodeInvalidApiType,
+			http.StatusBadRequest,
+			types.ErrOptionWithSkipRetry(),
+		)
 	}
 	common.SetContextKey(c, constant.ContextKeyChannelId, channel.Id)
 	common.SetContextKey(c, constant.ContextKeyChannelName, channel.Name)

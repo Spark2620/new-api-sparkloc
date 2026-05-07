@@ -108,7 +108,7 @@ const MODELS_SECTIONS = [
   {
     id: 'ratio',
     titleKey: 'Pricing Ratios',
-    descriptionKey: 'Configure model pricing and ratio settings',
+    descriptionKey: 'Configure model pricing settings',
     build: (settings: ModelSettings) => (
       <RatioSettingsCard
         modelDefaults={{
@@ -125,16 +125,6 @@ const MODELS_SECTIONS = [
           BillingExpr: settings['billing_setting.billing_expr'],
         }}
         toolPricesDefault={settings['tool_price_setting.prices']}
-        groupDefaults={{
-          TopupGroupRatio: settings.TopupGroupRatio,
-          GroupRatio: settings.GroupRatio,
-          UserUsableGroups: settings.UserUsableGroups,
-          GroupGroupRatio: settings.GroupGroupRatio,
-          AutoGroups: settings.AutoGroups,
-          DefaultUseAutoGroup: settings.DefaultUseAutoGroup,
-          GroupSpecialUsableGroup:
-            settings['group_ratio_setting.group_special_usable_group'],
-        }}
       />
     ),
   },

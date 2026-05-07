@@ -21,7 +21,7 @@ import {
   formatRequestPrice,
   stripTrailingZeros,
 } from '../lib/price'
-import type { PricingModel, TokenUnit } from '../types'
+import type { PricingChannelGroup, PricingModel, TokenUnit } from '../types'
 
 // ----------------------------------------------------------------------------
 // Pricing Table Columns
@@ -32,6 +32,7 @@ export interface PricingColumnsOptions {
   priceRate?: number
   usdExchangeRate?: number
   showRechargePrice?: boolean
+  channelGroups?: Record<string, PricingChannelGroup>
 }
 
 function renderLimitedTags(
@@ -56,7 +57,8 @@ function renderLimitedTags(
 
 function renderLimitedGroupBadges(
   groups: string[],
-  maxDisplay: number = 2
+  maxDisplay: number = 2,
+  channelGroups?: Record<string, PricingChannelGroup>
 ): React.ReactNode {
   if (groups.length === 0)
     return <span className='text-muted-foreground/50 text-xs'>—</span>
@@ -66,9 +68,24 @@ function renderLimitedGroupBadges(
 
   return (
     <div className='flex max-w-full items-center gap-1 overflow-hidden'>
-      {displayed.map((group) => (
-        <GroupBadge key={group} group={group} size='sm' />
-      ))}
+      {displayed.map((group) => {
+        const channelGroup = channelGroups?.[group]
+        if (!channelGroup) {
+          return <GroupBadge key={group} group={group} size='sm' />
+        }
+        const provider =
+          channelGroup.owner_username ||
+          (channelGroup.owner_user_id > 0 ? `#${channelGroup.owner_user_id}` : '')
+        return (
+          <span
+            key={group}
+            title={provider ? `${channelGroup.name} - ${provider}` : channelGroup.name}
+            className='bg-muted text-muted-foreground max-w-28 truncate rounded px-2 py-0.5 text-[11px] font-medium'
+          >
+            {channelGroup.name || group}
+          </span>
+        )
+      })}
       {remaining > 0 && (
         <span className='text-muted-foreground/50 text-xs'>+{remaining}</span>
       )}
@@ -85,6 +102,7 @@ export function usePricingColumns(
     priceRate = 1,
     usdExchangeRate = 1,
     showRechargePrice = false,
+    channelGroups = {},
   } = options
 
   const tokenUnitLabel = tokenUnit === 'K' ? '1K' : '1M'
@@ -417,11 +435,11 @@ export function usePricingColumns(
       enableSorting: false,
     },
 
-    // Enable Groups column
+    // Enable Channels column
     {
       accessorKey: 'enable_groups',
-      meta: { label: t('Groups') },
-      header: t('Groups'),
+      meta: { label: t('Channels') },
+      header: t('Channels'),
       cell: ({ row }) => {
         const groups = row.original.enable_groups || []
         if (groups.length === 0) {
@@ -432,14 +450,25 @@ export function usePricingColumns(
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div>{renderLimitedGroupBadges(groups, 2)}</div>
+                <div>{renderLimitedGroupBadges(groups, 2, channelGroups)}</div>
               </TooltipTrigger>
               {groups.length > 2 && (
                 <TooltipContent side='top' className='max-w-[280px] p-2'>
                   <div className='flex flex-wrap gap-1'>
-                    {groups.map((group) => (
-                      <GroupBadge key={group} group={group} size='sm' />
-                    ))}
+                    {groups.map((group) => {
+                      const channelGroup = channelGroups[group]
+                      if (!channelGroup) {
+                        return <GroupBadge key={group} group={group} size='sm' />
+                      }
+                      return (
+                        <span
+                          key={group}
+                          className='bg-muted text-muted-foreground rounded px-2 py-0.5 text-[11px] font-medium'
+                        >
+                          {channelGroup.name || group}
+                        </span>
+                      )
+                    })}
                   </div>
                 </TooltipContent>
               )}

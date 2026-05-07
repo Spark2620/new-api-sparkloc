@@ -1,8 +1,8 @@
 /**
  * Billing expression parsing utilities.
  *
- * Mirrors the parser used by the classic frontend so that the dynamic
- * pricing breakdown UI can be rendered from the same backend expressions.
+ * Parses backend billing expressions so the dynamic pricing breakdown UI can
+ * render tiered pricing and request-rule conditional multipliers.
  *
  * The grammar is intentionally narrow: we only support the shapes that the
  * server emits (tiered pricing + request-rule conditional multipliers), so

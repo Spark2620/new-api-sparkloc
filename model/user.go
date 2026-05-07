@@ -47,6 +47,7 @@ type User struct {
 	InviterId        int            `json:"inviter_id" gorm:"type:int;column:inviter_id;index"`
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
 	LinuxDOId        string         `json:"linux_do_id" gorm:"column:linux_do_id;index"`
+	SparklocId       string         `json:"sparkloc_id" gorm:"column:sparkloc_id;index"`
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
@@ -553,6 +554,7 @@ func (user *User) ClearBinding(bindingType string) error {
 		"wechat":   "wechat_id",
 		"telegram": "telegram_id",
 		"linuxdo":  "linux_do_id",
+		"sparkloc": "sparkloc_id",
 	}
 
 	column, ok := bindingColumnMap[bindingType]
@@ -1044,6 +1046,19 @@ func (user *User) FillUserByLinuxDOId() error {
 	}
 	err := DB.Where("linux_do_id = ?", user.LinuxDOId).First(user).Error
 	return err
+}
+
+func IsSparklocIdAlreadyTaken(sparklocId string) bool {
+	var user User
+	err := DB.Unscoped().Where("sparkloc_id = ?", sparklocId).First(&user).Error
+	return !errors.Is(err, gorm.ErrRecordNotFound)
+}
+
+func (user *User) FillUserBySparklocId() error {
+	if user.SparklocId == "" {
+		return errors.New("sparkloc id is empty")
+	}
+	return DB.Where("sparkloc_id = ?", user.SparklocId).First(user).Error
 }
 
 func RootUserExists() bool {

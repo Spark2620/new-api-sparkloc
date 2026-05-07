@@ -9,6 +9,8 @@ export type HeaderNavModulesConfig = {
   home: boolean
   console: boolean
   pricing: HeaderNavPricingConfig
+  leaderboard?: HeaderNavPricingConfig
+  channelAvailability?: HeaderNavPricingConfig
   docs: boolean
   about: boolean
   [key: string]: boolean | HeaderNavPricingConfig
@@ -28,6 +30,14 @@ export const HEADER_NAV_DEFAULT: HeaderNavModulesConfig = {
     enabled: true,
     requireAuth: false,
   },
+  leaderboard: {
+    enabled: true,
+    requireAuth: true,
+  },
+  channelAvailability: {
+    enabled: true,
+    requireAuth: true,
+  },
   docs: true,
   about: true,
 }
@@ -43,6 +53,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     detail: true,
     token: true,
     log: true,
+    channelEarnings: true,
     midjourney: true,
     task: true,
   },
@@ -117,17 +128,22 @@ export function parseHeaderNavModules(
     }
 
     Object.entries(parsed).forEach(([key, raw]) => {
-      if (key === 'pricing') {
+      if (
+        key === 'pricing' ||
+        key === 'leaderboard' ||
+        key === 'channelAvailability'
+      ) {
         if (raw && typeof raw === 'object') {
           const rawPricing = raw as Record<string, unknown>
-          result.pricing = {
+          result[key] = {
             enabled: toBoolean(
               rawPricing.enabled,
-              base.pricing?.enabled ?? true
+              (base[key] as HeaderNavPricingConfig | undefined)?.enabled ?? true
             ),
             requireAuth: toBoolean(
               rawPricing.requireAuth,
-              base.pricing?.requireAuth ?? false
+              (base[key] as HeaderNavPricingConfig | undefined)?.requireAuth ??
+                false
             ),
           }
         }

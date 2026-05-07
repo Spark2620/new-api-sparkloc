@@ -29,6 +29,16 @@ export interface UserProfile {
   group: string
   /** Current quota balance */
   quota: number
+  /** Remaining daily check-in credit */
+  daily_credit?: number
+  /** Remaining credit earned from providing channels */
+  earned_credit?: number
+  /** Legacy quota remaining outside the community-credit pool */
+  legacy_quota?: number
+  /** Total currently available quota */
+  available_quota?: number
+  /** Unix timestamp when the current daily credit resets */
+  daily_credit_expires_at?: number
   /** Total used quota */
   used_quota: number
   /** Total request count */
@@ -63,26 +73,29 @@ export interface UserProfile {
   telegram_id?: string
   /** LinuxDO ID (OAuth) */
   linux_do_id?: string
+  /** Sparkloc ID (OAuth) */
+  sparkloc_id?: string
 }
 
 /**
  * Notification type
  */
-export type NotifyType = 'email' | 'webhook' | 'bark' | 'gotify'
+export type NotifyType = 'none' | 'webhook' | 'bark' | 'gotify'
+export type StoredNotifyType = NotifyType | 'email'
 
 /**
  * Parsed user settings
  */
 export interface UserSettings {
   /** Notification type */
-  notify_type?: NotifyType
+  notify_type?: StoredNotifyType
   /** Quota warning threshold */
   quota_warning_threshold?: number
   /** Webhook URL */
   webhook_url?: string
   /** Webhook secret */
   webhook_secret?: string
-  /** Notification email */
+  /** Legacy notification email, ignored by the current Sparkloc-only build */
   notification_email?: string
   /** Bark URL */
   bark_url?: string
@@ -193,6 +206,16 @@ export interface CheckinStats {
   total_quota: number
   /** Current month check-in count */
   checkin_count: number
+  /** Remaining daily check-in credit */
+  daily_credit?: number
+  /** Remaining earned credit from channel payouts */
+  earned_credit?: number
+  /** Remaining legacy quota */
+  legacy_quota?: number
+  /** Total currently available quota */
+  available_quota?: number
+  /** Unix timestamp when the current daily credit resets */
+  daily_credit_expires_at?: number
   /** Check-in records for the queried month */
   records: CheckinRecord[]
 }

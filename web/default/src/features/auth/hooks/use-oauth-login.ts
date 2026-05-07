@@ -5,13 +5,8 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { api } from '@/lib/api'
 import { getOAuthState } from '../api'
-import {
-  buildGitHubOAuthUrl,
-  buildDiscordOAuthUrl,
-  buildOIDCOAuthUrl,
-  buildLinuxDOOAuthUrl,
-} from '../lib/oauth'
-import type { SystemStatus, CustomOAuthProviderInfo } from '../types'
+import { buildSparklocOAuthUrl } from '../lib/oauth'
+import type { SystemStatus } from '../types'
 
 type LogoutRequestConfig = AxiosRequestConfig & {
   skipErrorHandler?: boolean
@@ -23,17 +18,17 @@ type LogoutRequestConfig = AxiosRequestConfig & {
 export function useOAuthLogin(status: SystemStatus | null) {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
-  const [githubButtonText, setGithubButtonText] = useState('')
-  const [githubButtonDisabled, setGithubButtonDisabled] = useState(false)
-  const githubTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [sparklocButtonText, setSparklocButtonText] = useState('')
+  const [sparklocButtonDisabled, setSparklocButtonDisabled] = useState(false)
+  const sparklocTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { auth } = useAuthStore()
 
   useEffect(() => {
-    setGithubButtonText(t('Continue with GitHub'))
+    setSparklocButtonText(t('Continue with Sparkloc'))
 
     return () => {
-      if (githubTimeoutRef.current) {
-        clearTimeout(githubTimeoutRef.current)
+      if (sparklocTimeoutRef.current) {
+        clearTimeout(sparklocTimeoutRef.current)
       }
     }
   }, [t])
@@ -53,24 +48,27 @@ export function useOAuthLogin(status: SystemStatus | null) {
     }
   }
 
-  const handleGitHubLogin = async () => {
-    if (!status?.github_client_id) return
-    if (githubButtonDisabled) return
+  const handleSparklocLogin = async () => {
+    if (!status?.sparkloc_client_id || !status?.sparkloc_authorize_endpoint) {
+      toast.error(t('Sparkloc OAuth is not configured'))
+      return
+    }
+    if (sparklocButtonDisabled) return
 
     setIsLoading(true)
-    setGithubButtonDisabled(true)
-    setGithubButtonText(t('Redirecting to GitHub...'))
+    setSparklocButtonDisabled(true)
+    setSparklocButtonText(t('Redirecting to Sparkloc...'))
 
-    if (githubTimeoutRef.current) {
-      clearTimeout(githubTimeoutRef.current)
+    if (sparklocTimeoutRef.current) {
+      clearTimeout(sparklocTimeoutRef.current)
     }
 
-    githubTimeoutRef.current = setTimeout(() => {
+    sparklocTimeoutRef.current = setTimeout(() => {
       setIsLoading(false)
-      setGithubButtonText(
-        t('Request timed out, please refresh and restart GitHub login')
+      setSparklocButtonText(
+        t('Request timed out, please refresh and restart Sparkloc login')
       )
-      setGithubButtonDisabled(true)
+      setSparklocButtonDisabled(true)
     }, 20000)
 
     try {
@@ -78,140 +76,37 @@ export function useOAuthLogin(status: SystemStatus | null) {
       const state = await getOAuthState()
       if (!state) {
         toast.error(t('Failed to initialize OAuth'))
-        if (githubTimeoutRef.current) {
-          clearTimeout(githubTimeoutRef.current)
+        if (sparklocTimeoutRef.current) {
+          clearTimeout(sparklocTimeoutRef.current)
         }
         setIsLoading(false)
-        setGithubButtonText(t('Continue with GitHub'))
-        setGithubButtonDisabled(false)
+        setSparklocButtonText(t('Continue with Sparkloc'))
+        setSparklocButtonDisabled(false)
         return
       }
 
-      const url = buildGitHubOAuthUrl(status.github_client_id, state)
-      window.open(url, '_self')
-    } catch (_error) {
-      toast.error(t('Failed to start GitHub login'))
-      if (githubTimeoutRef.current) {
-        clearTimeout(githubTimeoutRef.current)
-      }
-      setIsLoading(false)
-      setGithubButtonText(t('Continue with GitHub'))
-      setGithubButtonDisabled(false)
-    }
-  }
-
-  const handleDiscordLogin = async () => {
-    if (!status?.discord_client_id) return
-
-    setIsLoading(true)
-    try {
-      await resetSession()
-      const state = await getOAuthState()
-      if (!state) {
-        toast.error(t('Failed to initialize OAuth'))
-        return
-      }
-
-      const url = buildDiscordOAuthUrl(status.discord_client_id, state)
-      window.open(url, '_self')
-    } catch (_error) {
-      toast.error(t('Failed to start Discord login'))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleOIDCLogin = async () => {
-    if (!status?.oidc_authorization_endpoint || !status?.oidc_client_id) return
-
-    setIsLoading(true)
-    try {
-      await resetSession()
-      const state = await getOAuthState()
-      if (!state) {
-        toast.error(t('Failed to initialize OAuth'))
-        return
-      }
-
-      const url = buildOIDCOAuthUrl(
-        status.oidc_authorization_endpoint,
-        status.oidc_client_id,
-        state
+      const url = buildSparklocOAuthUrl(
+        status.sparkloc_authorize_endpoint,
+        status.sparkloc_client_id,
+        state,
+        status.sparkloc_scopes
       )
       window.open(url, '_self')
     } catch (_error) {
-      toast.error(t('Failed to start OIDC login'))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleLinuxDOLogin = async () => {
-    if (!status?.linuxdo_client_id) return
-
-    setIsLoading(true)
-    try {
-      await resetSession()
-      const state = await getOAuthState()
-      if (!state) {
-        toast.error(t('Failed to initialize OAuth'))
-        return
+      toast.error(t('Failed to start Sparkloc login'))
+      if (sparklocTimeoutRef.current) {
+        clearTimeout(sparklocTimeoutRef.current)
       }
-
-      const url = buildLinuxDOOAuthUrl(status.linuxdo_client_id, state)
-      window.open(url, '_self')
-    } catch (_error) {
-      toast.error(t('Failed to start LinuxDO login'))
-    } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleTelegramLogin = () => {
-    toast.info(t('Telegram login requires widget integration; coming soon'))
-  }
-
-  const handleCustomOAuthLogin = async (provider: CustomOAuthProviderInfo) => {
-    if (!provider.authorization_endpoint || !provider.client_id) return
-
-    setIsLoading(true)
-    try {
-      await resetSession()
-      const state = await getOAuthState()
-      if (!state) {
-        toast.error(t('Failed to initialize OAuth'))
-        return
-      }
-
-      const redirectUri = `${window.location.origin}/oauth/${provider.slug}`
-      const url = new URL(provider.authorization_endpoint)
-      url.searchParams.set('client_id', provider.client_id)
-      url.searchParams.set('redirect_uri', redirectUri)
-      url.searchParams.set('response_type', 'code')
-      url.searchParams.set('state', state)
-      if (provider.scopes) {
-        url.searchParams.set('scope', provider.scopes)
-      }
-
-      window.open(url.toString(), '_self')
-    } catch (_error) {
-      toast.error(
-        t('Failed to start {{provider}} login', { provider: provider.name })
-      )
-    } finally {
-      setIsLoading(false)
+      setSparklocButtonText(t('Continue with Sparkloc'))
+      setSparklocButtonDisabled(false)
     }
   }
 
   return {
     isLoading,
-    githubButtonText,
-    githubButtonDisabled,
-    handleGitHubLogin,
-    handleDiscordLogin,
-    handleOIDCLogin,
-    handleLinuxDOLogin,
-    handleTelegramLogin,
-    handleCustomOAuthLogin,
+    sparklocButtonText,
+    sparklocButtonDisabled,
+    handleSparklocLogin,
   }
 }

@@ -1,16 +1,13 @@
-import { Activity, BarChart3, WalletCards } from 'lucide-react'
+import { Activity, BarChart3 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatCompactNumber, formatQuota } from '@/lib/format'
 import { getRoleLabel } from '@/lib/roles'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/status-badge'
-import { getUserInitials, getDisplayName } from '../lib'
+import { BalanceBreakdownCard } from '@/features/shared/components/balance-breakdown-card'
+import { getDisplayName, getUserInitials } from '../lib'
 import type { UserProfile } from '../types'
-
-// ============================================================================
-// Profile Header Component
-// ============================================================================
 
 interface ProfileHeaderProps {
   profile: UserProfile | null
@@ -39,9 +36,22 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
             </div>
           </div>
         </div>
-        <div className='border-t'>
-          <div className='divide-border/60 grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0'>
+        <div className='border-t p-3 sm:p-5'>
+          <Skeleton className='h-4 w-28' />
+          <Skeleton className='mt-3 h-10 w-40' />
+          <div className='mt-4 grid gap-3'>
             {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className='rounded-lg border px-3 py-3 sm:px-4'>
+                <Skeleton className='h-3.5 w-24' />
+                <Skeleton className='mt-2 h-6 w-24' />
+                <Skeleton className='mt-2 h-10 w-full' />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className='border-t'>
+          <div className='divide-border/60 grid grid-cols-1 divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0'>
+            {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className='px-4 py-3.5 sm:px-5 sm:py-4'>
                 <Skeleton className='h-3.5 w-20' />
                 <Skeleton className='mt-2 h-7 w-28' />
@@ -60,12 +70,6 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
   const initials = getUserInitials(profile)
   const roleLabel = getRoleLabel(profile.role)
   const stats = [
-    {
-      label: t('Current Balance'),
-      value: formatQuota(profile.quota),
-      description: t('Remaining quota'),
-      icon: WalletCards,
-    },
     {
       label: t('Total Usage'),
       value: formatQuota(profile.used_quota),
@@ -120,8 +124,11 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
           </div>
         </div>
       </div>
+      <div className='border-t p-3 sm:p-5'>
+        <BalanceBreakdownCard data={profile} compact nested />
+      </div>
       <div className='border-t'>
-        <div className='divide-border/60 grid grid-cols-3 divide-x'>
+        <div className='divide-border/60 grid grid-cols-2 divide-x'>
           {stats.map((item) => (
             <div key={item.label} className='min-w-0 px-3 py-3 sm:px-5 sm:py-4'>
               <div className='flex items-center gap-2'>

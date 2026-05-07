@@ -28,7 +28,6 @@ export type DeleteLogsResponse = {
 }
 
 export type GeneralSettings = {
-  'theme.frontend': string
   Notice: string
   SystemName: string
   Logo: string
@@ -57,8 +56,6 @@ export type GeneralSettings = {
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean
   'checkin_setting.enabled': boolean
-  'checkin_setting.min_quota': number
-  'checkin_setting.max_quota': number
   'channel_affinity_setting.enabled': boolean
   'channel_affinity_setting.switch_on_success': boolean
   'channel_affinity_setting.max_entries': number
@@ -67,47 +64,9 @@ export type GeneralSettings = {
 }
 
 export type AuthSettings = {
-  PasswordLoginEnabled: boolean
-  PasswordRegisterEnabled: boolean
-  EmailVerificationEnabled: boolean
-  RegisterEnabled: boolean
-  EmailDomainRestrictionEnabled: boolean
-  EmailAliasRestrictionEnabled: boolean
-  EmailDomainWhitelist: string
-  GitHubOAuthEnabled: boolean
-  GitHubClientId: string
-  GitHubClientSecret: string
-  'discord.enabled': boolean
-  'discord.client_id': string
-  'discord.client_secret': string
-  'oidc.enabled': boolean
-  'oidc.client_id': string
-  'oidc.client_secret': string
-  'oidc.well_known': string
-  'oidc.authorization_endpoint': string
-  'oidc.token_endpoint': string
-  'oidc.user_info_endpoint': string
-  TelegramOAuthEnabled: boolean
-  TelegramBotToken: string
-  TelegramBotName: string
-  LinuxDOOAuthEnabled: boolean
-  LinuxDOClientId: string
-  LinuxDOClientSecret: string
-  LinuxDOMinimumTrustLevel: string
-  WeChatAuthEnabled: boolean
-  WeChatServerAddress: string
-  WeChatServerToken: string
-  WeChatAccountQRCodeImageURL: string
   TurnstileCheckEnabled: boolean
   TurnstileSiteKey: string
   TurnstileSecretKey: string
-  'passkey.enabled': boolean
-  'passkey.rp_display_name': string
-  'passkey.rp_id': string
-  'passkey.origins': string
-  'passkey.allow_insecure_origin': boolean
-  'passkey.user_verification': 'required' | 'preferred' | 'discouraged'
-  'passkey.attachment_preference': '' | 'platform' | 'cross-platform'
 }
 
 export type ContentSettings = {
@@ -122,7 +81,6 @@ export type ContentSettings = {
   DataExportEnabled: boolean
   DataExportDefaultTime: string
   DataExportInterval: number
-  Chats: string
   DrawingEnabled: boolean
   MjNotifyEnabled: boolean
   MjAccountFilterEnabled: boolean
@@ -132,13 +90,6 @@ export type ContentSettings = {
 }
 
 export type IntegrationSettings = {
-  SMTPServer: string
-  SMTPPort: string
-  SMTPAccount: string
-  SMTPFrom: string
-  SMTPToken: string
-  SMTPSSLEnabled: boolean
-  SMTPForceAuthLogin: boolean
   WorkerUrl: string
   WorkerValidKey: string
   WorkerAllowHttpImageRequestEnabled: boolean
@@ -151,8 +102,6 @@ export type IntegrationSettings = {
   AutomaticRetryStatusCodes: string
   'monitor_setting.auto_test_channel_enabled': boolean
   'monitor_setting.auto_test_channel_minutes': number
-  'model_deployment.ionet.api_key': string
-  'model_deployment.ionet.enabled': boolean
   PayAddress: string
   EpayId: string
   EpayKey: string

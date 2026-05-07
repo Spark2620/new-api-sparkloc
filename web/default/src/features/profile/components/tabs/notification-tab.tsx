@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, Loader2, Mail, Server, Webhook } from 'lucide-react'
+import { Bell, BellOff, Loader2, Server, Webhook } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ROLE } from '@/lib/roles'
@@ -17,8 +17,8 @@ import {
 import { parseUserSettings } from '../../lib'
 import type { UserProfile, UserSettings, NotifyType } from '../../types'
 
-const NOTIFICATION_ICONS: Record<string, typeof Mail> = {
-  email: Mail,
+const NOTIFICATION_ICONS: Record<string, typeof BellOff> = {
+  none: BellOff,
   webhook: Webhook,
   bark: Bell,
   gotify: Server,
@@ -38,9 +38,8 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
   const isAdmin = (profile?.role ?? 0) >= ROLE.ADMIN
   const [loading, setLoading] = useState(false)
   const [settings, setSettings] = useState<UserSettings>({
-    notify_type: 'email',
+    notify_type: 'none',
     quota_warning_threshold: DEFAULT_QUOTA_WARNING_THRESHOLD,
-    notification_email: '',
     webhook_url: '',
     webhook_secret: '',
     bark_url: '',
@@ -63,11 +62,12 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
   useEffect(() => {
     if (profile?.setting) {
       const parsed = parseUserSettings(profile.setting)
+      const notifyType: NotifyType =
+        parsed.notify_type === 'email' ? 'none' : parsed.notify_type || 'none'
       setSettings({
-        notify_type: parsed.notify_type || 'email',
+        notify_type: notifyType,
         quota_warning_threshold:
           parsed.quota_warning_threshold ?? DEFAULT_QUOTA_WARNING_THRESHOLD,
-        notification_email: parsed.notification_email ?? '',
         webhook_url: parsed.webhook_url ?? '',
         webhook_secret: parsed.webhook_secret ?? '',
         bark_url: parsed.bark_url ?? '',
@@ -158,21 +158,6 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
           {t('Get notified when balance falls below this value')}
         </p>
       </div>
-
-      {/* Email Settings */}
-      {settings.notify_type === 'email' && (
-        <div className='space-y-1.5'>
-          <Label htmlFor='notifyEmail'>{t('Notification Email')}</Label>
-          <Input
-            id='notifyEmail'
-            type='email'
-            className='h-9'
-            value={settings.notification_email}
-            onChange={(e) => updateField('notification_email', e.target.value)}
-            placeholder={t('Leave empty to use account email')}
-          />
-        </div>
-      )}
 
       {/* Webhook Settings */}
       {settings.notify_type === 'webhook' && (

@@ -31,7 +31,7 @@ export interface CommonFilters {
 export interface CommonLogFilters extends CommonFilters {
   model?: string
   token?: string
-  group?: string
+  channelName?: string
   username?: string
   requestId?: string
 }
@@ -74,6 +74,7 @@ export interface ChannelAffinityInfo {
 }
 
 export interface LogOtherData {
+  channel_name?: string
   admin_info?: {
     is_multi_key?: boolean
     multi_key_index?: number
@@ -248,6 +249,7 @@ export interface GetLogsParams {
   end_timestamp?: number
   channel?: number
   group?: string
+  channel_name?: string
   request_id?: string
 }
 
@@ -271,6 +273,7 @@ export interface GetLogStatsParams {
   end_timestamp?: number
   channel?: number
   group?: string
+  channel_name?: string
   request_id?: string
 }
 

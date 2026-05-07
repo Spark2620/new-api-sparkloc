@@ -16,6 +16,8 @@ import {
 import { DataTableColumnHeader } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
+import { getChannels } from '@/features/channels/api'
+import { getChannelTypeLabel } from '@/features/channels/lib'
 import { getSystemOptions } from '@/features/system-settings/api'
 import { API_KEY_STATUSES } from '../constants'
 import { type ApiKey } from '../types'
@@ -77,9 +79,47 @@ function useGroupRatios(): Record<string, number> {
   )
 }
 
+type CommunityChannelSummary = {
+  name: string
+  owner: string
+  ratio: number
+  typeLabel: string
+  tag?: string | null
+}
+
+function useCommunityChannelMap(): Record<string, CommunityChannelSummary> {
+  const { t } = useTranslation()
+  const { data } = useQuery({
+    queryKey: ['api-key-community-channels'],
+    queryFn: () => getChannels({ status: 'enabled', page_size: 100 }),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return useMemo(() => {
+    const map: Record<string, CommunityChannelSummary> = {}
+    for (const channel of data?.data?.items || []) {
+      map[`channel-${channel.id}`] = {
+        name: channel.name,
+        owner:
+          channel.owner_username ||
+          (channel.owner_user_id > 0 ? `#${channel.owner_user_id}` : t('Unknown')),
+        ratio: channel.supply_ratio || 1,
+        typeLabel: t(getChannelTypeLabel(channel.type)),
+        tag: channel.tag,
+      }
+    }
+    return map
+  }, [data, t])
+}
+
+function formatRatioLabel(ratio: number): string {
+  return `${ratio.toFixed(2).replace(/\.?0+$/, '')}x`
+}
+
 export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
   const { t } = useTranslation()
   const groupRatios = useGroupRatios()
+  const communityChannels = useCommunityChannelMap()
   return [
     {
       id: 'select',
@@ -215,6 +255,51 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
         const apiKey = row.original
         const group = row.getValue('group') as string
         const ratio = group && group !== 'auto' ? groupRatios[group] : undefined
+
+        if (group?.startsWith('channel-')) {
+          const channel = communityChannels[group]
+          const label = channel?.name || group
+          const channelRatio = channel?.ratio || 1
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className='inline-flex max-w-[220px] items-center gap-1.5 overflow-hidden'>
+                  <StatusBadge
+                    label={label}
+                    variant='blue'
+                    size='sm'
+                    copyable={false}
+                    className='min-w-0 truncate'
+                  />
+                  <StatusBadge
+                    label={formatRatioLabel(channelRatio)}
+                    variant={channelRatio > 1 ? 'warning' : 'success'}
+                    size='sm'
+                    copyable={false}
+                  />
+                </span>
+              </TooltipTrigger>
+              {channel && (
+                <TooltipContent>
+                  <div className='space-y-1 text-xs'>
+                    <div>
+                      {t('Creator')}: {channel.owner}
+                    </div>
+                    <div>
+                      {t('Type')}: {channel.typeLabel}
+                    </div>
+                    {channel.tag && (
+                      <div>
+                        {t('Tag')}: {channel.tag}
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          )
+        }
 
         if (group === 'auto') {
           return (

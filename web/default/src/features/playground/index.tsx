@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { getUserModels, getUserGroups } from './api'
 import { PlaygroundChat } from './components/playground-chat'
 import { PlaygroundInput } from './components/playground-input'
-import { DEFAULT_GROUP } from './constants'
 import { usePlaygroundState, useChatHandler } from './hooks'
 import { createUserMessage, createLoadingAssistantMessage } from './lib'
 import type { Message as MessageType } from './types'
 
 export function Playground() {
+  const { t } = useTranslation()
   const {
     config,
     parameterEnabled,
@@ -41,7 +42,7 @@ export function Playground() {
   // Load groups
   const { data: groupsData } = useQuery({
     queryKey: ['playground-groups'],
-    queryFn: getUserGroups,
+    queryFn: () => getUserGroups(t),
   })
 
   // Update models when data changes
@@ -60,23 +61,12 @@ export function Playground() {
   // Update groups when data changes
   useEffect(() => {
     if (!groupsData) return
-
-    // Add auto group if not present
-    const hasAutoGroup = groupsData.some((g) => g.value === DEFAULT_GROUP)
-    const processedGroups = hasAutoGroup
-      ? groupsData
-      : [
-          {
-            value: DEFAULT_GROUP,
-            label: 'Auto',
-            ratio: 1,
-            desc: 'Circuit Breaker',
-          },
-          ...groupsData,
-        ]
-
-    setGroups(processedGroups)
-  }, [groupsData, setGroups])
+    setGroups(groupsData)
+    const isCurrentGroupValid = groupsData.some((g) => g.value === config.group)
+    if (groupsData.length > 0 && !isCurrentGroupValid) {
+      updateConfig('group', groupsData[0].value)
+    }
+  }, [groupsData, config.group, setGroups, updateConfig])
 
   const handleSendMessage = (text: string) => {
     const userMessage = createUserMessage(text)

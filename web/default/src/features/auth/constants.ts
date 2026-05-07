@@ -50,13 +50,6 @@ export const BACKUP_CODE_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i
 export const OTP_REGEX = /^\d{6}$/
 
 // ============================================================================
-// Countdown Constants
-// ============================================================================
-
-export const EMAIL_VERIFICATION_COUNTDOWN = 30 // seconds
-export const PASSWORD_RESET_COUNTDOWN = 30 // seconds
-
-// ============================================================================
 // OAuth Constants
 // ============================================================================
 

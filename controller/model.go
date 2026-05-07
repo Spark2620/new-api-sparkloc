@@ -10,10 +10,6 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay"
-	"github.com/QuantumNous/new-api/relay/channel/ai360"
-	"github.com/QuantumNous/new-api/relay/channel/lingyiwanwu"
-	"github.com/QuantumNous/new-api/relay/channel/minimax"
-	"github.com/QuantumNous/new-api/relay/channel/moonshot"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
@@ -36,6 +32,9 @@ func init() {
 			continue
 		}
 		adaptor := relay.GetAdaptor(i)
+		if adaptor == nil {
+			continue
+		}
 		channelName := adaptor.GetChannelName()
 		modelNames := adaptor.GetModelList()
 		for _, modelName := range modelNames {
@@ -46,46 +45,6 @@ func init() {
 				OwnedBy: channelName,
 			})
 		}
-	}
-	for _, modelName := range ai360.ModelList {
-		openAIModels = append(openAIModels, dto.OpenAIModels{
-			Id:      modelName,
-			Object:  "model",
-			Created: 1626777600,
-			OwnedBy: ai360.ChannelName,
-		})
-	}
-	for _, modelName := range moonshot.ModelList {
-		openAIModels = append(openAIModels, dto.OpenAIModels{
-			Id:      modelName,
-			Object:  "model",
-			Created: 1626777600,
-			OwnedBy: moonshot.ChannelName,
-		})
-	}
-	for _, modelName := range lingyiwanwu.ModelList {
-		openAIModels = append(openAIModels, dto.OpenAIModels{
-			Id:      modelName,
-			Object:  "model",
-			Created: 1626777600,
-			OwnedBy: lingyiwanwu.ChannelName,
-		})
-	}
-	for _, modelName := range minimax.ModelList {
-		openAIModels = append(openAIModels, dto.OpenAIModels{
-			Id:      modelName,
-			Object:  "model",
-			Created: 1626777600,
-			OwnedBy: minimax.ChannelName,
-		})
-	}
-	for modelName, _ := range constant.MidjourneyModel2Action {
-		openAIModels = append(openAIModels, dto.OpenAIModels{
-			Id:      modelName,
-			Object:  "model",
-			Created: 1626777600,
-			OwnedBy: "midjourney",
-		})
 	}
 	openAIModelsMap = make(map[string]dto.OpenAIModels)
 	for _, aiModel := range openAIModels {
@@ -202,6 +161,15 @@ func ListModels(c *gin.Context, modelType int) {
 
 	switch modelType {
 	case constant.ChannelTypeAnthropic:
+		if len(userOpenAiModels) == 0 {
+			c.JSON(200, gin.H{
+				"data":     []dto.AnthropicModel{},
+				"first_id": "",
+				"has_more": false,
+				"last_id":  "",
+			})
+			return
+		}
 		useranthropicModels := make([]dto.AnthropicModel, len(userOpenAiModels))
 		for i, model := range userOpenAiModels {
 			useranthropicModels[i] = dto.AnthropicModel{

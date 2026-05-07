@@ -70,8 +70,11 @@ export const Route = createRootRouteWithContext<{
   // 应用初始化与路由解析前统一校验会话
   beforeLoad: async ({ location }) => {
     const pathname = location?.pathname || ''
+    const isSetupRoute = pathname.startsWith('/setup')
+    const isSparklocOAuthCallback =
+      pathname === '/oauth/sparkloc' || pathname.startsWith('/oauth/sparkloc/')
     const needsSetupCheck =
-      !setupStatusChecked && !pathname.startsWith('/setup')
+      !setupStatusChecked && !isSetupRoute && !isSparklocOAuthCallback
 
     // 用户信息已通过 auth-store 从 localStorage 恢复
     // 如果 auth.user 存在，说明用户已登录（有缓存的用户数据）

@@ -76,11 +76,11 @@ export function useSummaryCardsConfig(totals: {
   return [
     {
       key: 'balance',
-      title: t('Current Balance'),
+      title: t('Available balance'),
       value: totals.remainDisplay,
-      description: totals.currencyEnabled
-        ? `${t('Remaining quota')} (${totals.currencyLabel})`
-        : t('Remaining quota units'),
+      description: t(
+        'Current daily credit, channel earnings balance, and legacy quota'
+      ),
       icon: Wallet,
     },
     {

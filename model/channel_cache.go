@@ -28,24 +28,27 @@ func InitChannelCache() {
 	for _, channel := range channels {
 		newChannelId2channel[channel.Id] = channel
 	}
-	var abilities []*Ability
-	DB.Find(&abilities)
-	groups := make(map[string]bool)
-	for _, ability := range abilities {
-		groups[ability.Group] = true
-	}
 	newGroup2model2channels := make(map[string]map[string][]int)
-	for group := range groups {
-		newGroup2model2channels[group] = make(map[string][]int)
-	}
 	for _, channel := range channels {
+		if !constant.IsSupportedChannelType(channel.Type) {
+			continue
+		}
 		if channel.Status != common.ChannelStatusEnabled {
 			continue // skip disabled channels
 		}
-		groups := strings.Split(channel.Group, ",")
-		for _, group := range groups {
+		for _, group := range channel.GetGroups() {
+			if group == "" {
+				continue
+			}
+			if _, ok := newGroup2model2channels[group]; !ok {
+				newGroup2model2channels[group] = make(map[string][]int)
+			}
 			models := strings.Split(channel.Models, ",")
 			for _, model := range models {
+				model = strings.TrimSpace(model)
+				if model == "" {
+					continue
+				}
 				if _, ok := newGroup2model2channels[group][model]; !ok {
 					newGroup2model2channels[group][model] = make([]int, 0)
 				}

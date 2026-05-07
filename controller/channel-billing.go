@@ -114,13 +114,6 @@ type DeepSeekUsageResponse struct {
 	} `json:"balance_infos"`
 }
 
-type OpenRouterCreditResponse struct {
-	Data struct {
-		TotalCredits float64 `json:"total_credits"`
-		TotalUsage   float64 `json:"total_usage"`
-	} `json:"data"`
-}
-
 // GetAuthHeader get auth header
 func GetAuthHeader(token string) http.Header {
 	h := http.Header{}
@@ -306,22 +299,6 @@ func updateChannelAIGC2DBalance(channel *model.Channel) (float64, error) {
 	return response.TotalAvailable, nil
 }
 
-func updateChannelOpenRouterBalance(channel *model.Channel) (float64, error) {
-	url := "https://openrouter.ai/api/v1/credits"
-	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
-	if err != nil {
-		return 0, err
-	}
-	response := OpenRouterCreditResponse{}
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return 0, err
-	}
-	balance := response.Data.TotalCredits - response.Data.TotalUsage
-	channel.UpdateBalance(balance)
-	return balance, nil
-}
-
 func updateChannelMoonshotBalance(channel *model.Channel) (float64, error) {
 	url := "https://api.moonshot.cn/v1/users/me/balance"
 	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
@@ -370,22 +347,6 @@ func updateChannelBalance(channel *model.Channel) (float64, error) {
 		return 0, errors.New("尚未实现")
 	case constant.ChannelTypeCustom:
 		baseURL = channel.GetBaseURL()
-	//case common.ChannelTypeOpenAISB:
-	//	return updateChannelOpenAISBBalance(channel)
-	case constant.ChannelTypeAIProxy:
-		return updateChannelAIProxyBalance(channel)
-	case constant.ChannelTypeAPI2GPT:
-		return updateChannelAPI2GPTBalance(channel)
-	case constant.ChannelTypeAIGC2D:
-		return updateChannelAIGC2DBalance(channel)
-	case constant.ChannelTypeSiliconFlow:
-		return updateChannelSiliconFlowBalance(channel)
-	case constant.ChannelTypeDeepSeek:
-		return updateChannelDeepSeekBalance(channel)
-	case constant.ChannelTypeOpenRouter:
-		return updateChannelOpenRouterBalance(channel)
-	case constant.ChannelTypeMoonshot:
-		return updateChannelMoonshotBalance(channel)
 	default:
 		return 0, errors.New("尚未实现")
 	}
@@ -430,6 +391,9 @@ func UpdateChannelBalance(c *gin.Context) {
 	channel, err := model.CacheGetChannel(id)
 	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+	if !ensureChannelOwner(c, channel) {
 		return
 	}
 	if channel.ChannelInfo.IsMultiKey {

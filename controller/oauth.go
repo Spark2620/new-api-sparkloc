@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
@@ -43,6 +45,13 @@ func GenerateOAuthCode(c *gin.Context) {
 // HandleOAuth handles OAuth callback for all standard OAuth providers
 func HandleOAuth(c *gin.Context) {
 	providerName := c.Param("provider")
+	if providerName != "sparkloc" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": i18n.T(c, i18n.MsgOAuthUnknownProvider),
+		})
+		return
+	}
 	provider := oauth.GetProvider(providerName)
 	if provider == nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -232,8 +241,12 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		}
 	}
 
-	// User doesn't exist, create new user if registration is enabled
-	if !common.RegisterEnabled {
+	isSparkloc := provider.GetProviderPrefix() == "sparkloc_"
+	isSetupRoot := !constant.Setup && isSparkloc
+
+	// User doesn't exist, create new user. Sparkloc is the only public account
+	// entrypoint in this fork, so OAuth sign-in is also OAuth registration.
+	if !isSparkloc && !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
 
@@ -259,7 +272,12 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	if oauthUser.Email != "" {
 		user.Email = oauthUser.Email
 	}
-	user.Role = common.RoleCommonUser
+	if isSetupRoot {
+		user.Role = common.RoleRootUser
+		user.Quota = 100000000
+	} else {
+		user.Role = common.RoleCommonUser
+	}
 	user.Status = common.UserStatusEnabled
 
 	// Handle affiliate code
@@ -303,24 +321,46 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 			if err := user.InsertWithTx(tx, inviterId); err != nil {
 				return err
 			}
+			if isSetupRoot {
+				user.Quota = 100000000
+			}
 
 			// Set the provider user ID on the user model and update
 			provider.SetProviderUserID(user, oauthUser.ProviderUserID)
-			if err := tx.Model(user).Updates(map[string]interface{}{
+			updates := map[string]interface{}{
 				"github_id":   user.GitHubId,
 				"discord_id":  user.DiscordId,
 				"oidc_id":     user.OidcId,
 				"linux_do_id": user.LinuxDOId,
 				"wechat_id":   user.WeChatId,
 				"telegram_id": user.TelegramId,
-			}).Error; err != nil {
+				"sparkloc_id": user.SparklocId,
+			}
+			if isSetupRoot {
+				updates["quota"] = user.Quota
+			}
+			if err := tx.Model(user).Updates(updates).Error; err != nil {
 				return err
+			}
+
+			if isSetupRoot {
+				setup := model.Setup{
+					Version:       common.Version,
+					InitializedAt: time.Now().Unix(),
+				}
+				if err := tx.Create(&setup).Error; err != nil {
+					return err
+				}
 			}
 
 			return nil
 		})
 		if err != nil {
 			return nil, err
+		}
+
+		if isSetupRoot {
+			constant.Setup = true
 		}
 
 		// Perform post-transaction tasks

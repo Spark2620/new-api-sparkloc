@@ -23,8 +23,6 @@ import { useUpdateOption } from '../hooks/use-update-option'
 const quotaSchema = z.object({
   QuotaForNewUser: z.coerce.number().min(0),
   PreConsumedQuota: z.coerce.number().min(0),
-  QuotaForInviter: z.coerce.number().min(0),
-  QuotaForInvitee: z.coerce.number().min(0),
   TopUpLink: z.string().url().optional().or(z.literal('')),
   'general_setting.docs_link': z.string().url().optional().or(z.literal('')),
   'quota_setting.enable_free_model_pre_consume': z.boolean(),
@@ -63,7 +61,7 @@ export function QuotaSettingsSection({
   return (
     <SettingsSection
       title={t('Quota Settings')}
-      description={t('Configure user quota allocation and rewards')}
+      description={t('Configure user quota allocation')}
     >
       <FormNavigationGuard when={isDirty} />
 
@@ -112,54 +110,6 @@ export function QuotaSettingsSection({
                 </FormControl>
                 <FormDescription>
                   {t('Quota consumed before charging users')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='QuotaForInviter'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Inviter Reward')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    value={field.value as number}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Quota given to users who invite others')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='QuotaForInvitee'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Invitee Reward')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    value={field.value as number}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Quota given to invited users')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>

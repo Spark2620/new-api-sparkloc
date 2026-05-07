@@ -86,7 +86,7 @@ func LogError(ctx context.Context, msg string) {
 }
 
 func LogDebug(ctx context.Context, msg string, args ...any) {
-	if common.DebugEnabled {
+	if common.DebugEnabled && common.LogLevelEnabled(common.LogLevelDebug) {
 		if len(args) > 0 {
 			msg = fmt.Sprintf(msg, args...)
 		}
@@ -95,6 +95,24 @@ func LogDebug(ctx context.Context, msg string, args ...any) {
 }
 
 func logHelper(ctx context.Context, level string, msg string) {
+	switch level {
+	case loggerINFO:
+		if !common.LogLevelEnabled(common.LogLevelInfo) {
+			return
+		}
+	case loggerWarn:
+		if !common.LogLevelEnabled(common.LogLevelWarn) {
+			return
+		}
+	case loggerError:
+		if !common.LogLevelEnabled(common.LogLevelError) {
+			return
+		}
+	case loggerDebug:
+		if !common.LogLevelEnabled(common.LogLevelDebug) {
+			return
+		}
+	}
 	id := ctx.Value(common.RequestIdKey)
 	if id == nil {
 		id = "SYSTEM"
@@ -102,7 +120,7 @@ func logHelper(ctx context.Context, level string, msg string) {
 	now := time.Now()
 	common.LogWriterMu.RLock()
 	writer := gin.DefaultErrorWriter
-	if level == loggerINFO {
+	if level == loggerINFO || level == loggerWarn || level == loggerDebug {
 		writer = gin.DefaultWriter
 	}
 	_, _ = fmt.Fprintf(writer, "[%s] %v | %s | %s \n", level, now.Format("2006/01/02 - 15:04:05"), id, msg)

@@ -9,6 +9,23 @@ func IsChannelEnabledForGroupModel(group string, modelName string, channelID int
 	if group == "" || modelName == "" || channelID <= 0 {
 		return false
 	}
+	if parsedChannelID, ok := ParseChannelGroupName(group); ok {
+		if parsedChannelID != channelID {
+			return false
+		}
+		channel, err := CacheGetChannel(channelID)
+		if err != nil {
+			channel, err = GetChannelById(channelID, true)
+		}
+		if err != nil || channel == nil || channel.Status != common.ChannelStatusEnabled {
+			return false
+		}
+		if common.StringsContains(channel.GetModels(), modelName) {
+			return true
+		}
+		normalized := ratio_setting.FormatMatchingModelName(modelName)
+		return normalized != "" && common.StringsContains(channel.GetModels(), normalized)
+	}
 	if !common.MemoryCacheEnabled {
 		return isChannelEnabledForGroupModelDB(group, modelName, channelID)
 	}

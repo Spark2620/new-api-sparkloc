@@ -6,13 +6,6 @@ import {
 } from './section-registry.tsx'
 
 const defaultIntegrationSettings: IntegrationSettingsType = {
-  SMTPServer: '',
-  SMTPPort: '',
-  SMTPAccount: '',
-  SMTPFrom: '',
-  SMTPToken: '',
-  SMTPSSLEnabled: false,
-  SMTPForceAuthLogin: false,
   WorkerUrl: '',
   WorkerValidKey: '',
   WorkerAllowHttpImageRequestEnabled: false,
@@ -26,8 +19,6 @@ const defaultIntegrationSettings: IntegrationSettingsType = {
     '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
   'monitor_setting.auto_test_channel_enabled': false,
   'monitor_setting.auto_test_channel_minutes': 10,
-  'model_deployment.ionet.api_key': '',
-  'model_deployment.ionet.enabled': false,
   PayAddress: '',
   EpayId: '',
   EpayKey: '',

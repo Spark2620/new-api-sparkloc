@@ -39,13 +39,25 @@ export type PricingModel = {
   pricing_version?: string
 }
 
+export type PricingChannelGroup = {
+  group: string
+  channel_id: number
+  name: string
+  owner_user_id: number
+  owner_username?: string
+  supply_ratio: number
+  tag?: string
+  type: number
+}
+
 export type PricingData = {
   success: boolean
   message?: string
   data: PricingModel[]
   vendors: PricingVendor[]
   group_ratio: Record<string, number>
-  usable_group: Record<string, { desc: string; ratio: number }>
+  usable_group: Record<string, string>
+  channel_groups?: Record<string, PricingChannelGroup>
   supported_endpoint: Record<string, string>
   auto_groups: string[]
 }

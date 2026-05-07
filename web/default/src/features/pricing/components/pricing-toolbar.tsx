@@ -34,7 +34,12 @@ import {
   type SortOption,
   type ViewMode,
 } from '../constants'
-import type { PricingModel, PricingVendor, TokenUnit } from '../types'
+import type {
+  PricingChannelGroup,
+  PricingModel,
+  PricingVendor,
+  TokenUnit,
+} from '../types'
 import { PricingSidebar } from './pricing-sidebar'
 
 type SegmentOption = {
@@ -68,6 +73,7 @@ export interface PricingToolbarProps {
   vendors: PricingVendor[]
   groups: string[]
   groupRatios?: Record<string, number>
+  channelGroups?: Record<string, PricingChannelGroup>
   tags: string[]
   models: PricingModel[]
   hasActiveFilters: boolean
@@ -264,7 +270,7 @@ export function PricingToolbar(props: PricingToolbarProps) {
           <SheetHeader className='border-b px-4 py-3 sm:px-6 sm:py-4'>
             <SheetTitle>{t('Filter')}</SheetTitle>
             <SheetDescription>
-              {t('Filter models by provider, group, type, endpoint, and tags.')}
+              {t('Filter models by provider, channel, type, endpoint, and tags.')}
             </SheetDescription>
           </SheetHeader>
           <div className='flex-1 overflow-y-auto p-3 sm:p-4'>
@@ -282,6 +288,7 @@ export function PricingToolbar(props: PricingToolbarProps) {
               vendors={props.vendors}
               groups={props.groups}
               groupRatios={props.groupRatios}
+              channelGroups={props.channelGroups}
               tags={props.tags}
               models={props.models}
               hasActiveFilters={props.hasActiveFilters}

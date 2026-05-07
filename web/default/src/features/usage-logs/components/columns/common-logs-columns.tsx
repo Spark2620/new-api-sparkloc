@@ -451,6 +451,9 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
       const displayName = sensitiveVisible ? tokenName : '••••'
       let group = log.group
       if (!group) group = other?.group || ''
+      if (group.startsWith('channel-')) {
+        group = log.channel_name || other?.channel_name || group
+      }
 
       const metaParts: string[] = []
       const groupRatioText = getGroupRatioText(other)

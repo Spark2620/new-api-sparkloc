@@ -35,6 +35,7 @@ const providerDictionary: Record<string, ProviderMeta> = {
       <SiWechat className={props.className} focusable='false' />
     ),
   },
+  sparkloc: { label: 'Sparkloc', Icon: UserRound },
 }
 
 export function OAuthCallbackScreen({

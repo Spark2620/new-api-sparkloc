@@ -3,16 +3,8 @@
 // ============================================================================
 
 export {
-  login,
-  login2fa,
   logout,
-  register,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-  bindEmail,
   getOAuthState,
-  githubOAuthStart,
-  wechatLoginByCode,
 } from './api'
 
 // ============================================================================
@@ -20,14 +12,6 @@ export {
 // ============================================================================
 
 export type {
-  LoginPayload,
-  LoginResponse,
-  Login2FAResponse,
-  TwoFAPayload,
-  RegisterPayload,
-  PasswordResetPayload,
-  EmailVerificationPayload,
-  BindEmailPayload,
   ApiResponse,
   SystemStatus,
   OAuthProvider,
@@ -39,18 +23,7 @@ export type {
 // ============================================================================
 
 export {
-  loginFormSchema,
-  registerFormSchema,
-  forgotPasswordFormSchema,
-  otpFormSchema,
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_MAX_LENGTH,
-  OTP_LENGTH,
-  BACKUP_CODE_LENGTH,
-  BACKUP_CODE_REGEX,
-  OTP_REGEX,
-  EMAIL_VERIFICATION_COUNTDOWN,
-  PASSWORD_RESET_COUNTDOWN,
+  OAUTH_BIND_STORAGE_KEY,
 } from './constants'
 
 // ============================================================================
@@ -58,10 +31,7 @@ export {
 // ============================================================================
 
 export {
-  buildGitHubOAuthUrl,
-  buildDiscordOAuthUrl,
-  buildOIDCOAuthUrl,
-  buildLinuxDOOAuthUrl,
+  buildSparklocOAuthUrl,
   getAvailableOAuthProviders,
   hasOAuthProviders,
 } from './lib/oauth'
@@ -89,7 +59,6 @@ export {
 export { useTurnstile } from './hooks/use-turnstile'
 export { useOAuthLogin } from './hooks/use-oauth-login'
 export { useAuthRedirect } from './hooks/use-auth-redirect'
-export { useEmailVerification } from './hooks/use-email-verification'
 
 // ============================================================================
 // Components
@@ -100,6 +69,3 @@ export { OAuthProviders } from './components/oauth-providers'
 export { TermsFooter } from './components/terms-footer'
 export { LegalConsent } from './components/legal-consent'
 export { SignIn } from './sign-in'
-export { SignUp } from './sign-up'
-export { ForgotPassword } from './forgot-password'
-export { Otp } from './otp'

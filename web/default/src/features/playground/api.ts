@@ -1,4 +1,6 @@
 import { api } from '@/lib/api'
+import { getChannels } from '@/features/channels/api'
+import { getChannelTypeLabel } from '@/features/channels/lib'
 import { API_ENDPOINTS } from './constants'
 import type {
   ChatCompletionRequest,
@@ -39,21 +41,49 @@ export async function getUserModels(): Promise<ModelOption[]> {
 /**
  * Get user groups
  */
-export async function getUserGroups(): Promise<GroupOption[]> {
-  const res = await api.get(API_ENDPOINTS.USER_GROUPS)
-  const { data } = res
-
-  if (!data.success || !data.data) {
-    return []
+export async function getUserGroups(
+  t?: (key: string) => string
+): Promise<GroupOption[]> {
+  const response = await getChannels({ status: 'enabled', page_size: 100 })
+  const translate = t || ((key: string) => key)
+  const autoOption: GroupOption = {
+    label: translate('Auto'),
+    value: 'auto',
+    ratio: 1,
+    desc: translate('Automatically select an available channel'),
   }
 
-  const groupData = data.data as Record<string, { desc: string; ratio: number }>
+  if (!response.success || !response.data?.items) {
+    return [autoOption]
+  }
 
-  // label is for button display (name only); desc is for dropdown content
-  return Object.entries(groupData).map(([group, info]) => ({
-    label: group,
-    value: group,
-    ratio: info.ratio,
-    desc: info.desc,
-  }))
+  const channelOptions = response.data.items.map((channel) => {
+    const creator =
+      channel.owner_username ||
+      (channel.owner_user_id > 0
+        ? `#${channel.owner_user_id}`
+        : translate('Unknown'))
+    const modelsPreview = (channel.models || '')
+      .split(',')
+      .map((model) => model.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ')
+    const details = [
+      `${translate('Channel Creator')}: ${creator}`,
+      translate(getChannelTypeLabel(channel.type)),
+      channel.tag || undefined,
+      modelsPreview || undefined,
+    ].filter(Boolean)
+
+    return {
+      label: channel.name,
+      value: `channel-${channel.id}`,
+      ratio: channel.supply_ratio || 1,
+      creator,
+      desc: details.join(' - '),
+    }
+  })
+
+  return [autoOption, ...channelOptions]
 }

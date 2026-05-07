@@ -62,7 +62,8 @@ export function CommonLogsFilterBar({
     if (searchParams.channel) next.channel = String(searchParams.channel)
     if (searchParams.model) next.model = searchParams.model
     if (searchParams.token) next.token = searchParams.token
-    if (searchParams.group) next.group = searchParams.group
+    if (searchParams.channel_name)
+      next.channelName = searchParams.channel_name
     if (searchParams.username) next.username = searchParams.username
     if (searchParams.requestId) next.requestId = searchParams.requestId
 
@@ -80,7 +81,7 @@ export function CommonLogsFilterBar({
     searchParams.channel,
     searchParams.model,
     searchParams.token,
-    searchParams.group,
+    searchParams.channel_name,
     searchParams.username,
     searchParams.requestId,
     searchParams.type,
@@ -161,10 +162,10 @@ export function CommonLogsFilterBar({
           className='h-9'
         />
         <Input
-          placeholder={t('Group')}
+          placeholder={t('Channel Name')}
           type={sensitiveVisible ? 'text' : 'password'}
-          value={filters.group || ''}
-          onChange={(e) => handleChange('group', e.target.value)}
+          value={filters.channelName || ''}
+          onChange={(e) => handleChange('channelName', e.target.value)}
           onKeyDown={handleKeyDown}
           className='h-9'
         />

@@ -38,7 +38,12 @@ import {
   isDynamicPricingModel,
 } from '../lib/dynamic-price'
 import { formatGroupPrice, formatFixedPrice } from '../lib/price'
-import type { PricingModel, TokenUnit, PriceType } from '../types'
+import type {
+  PricingChannelGroup,
+  PricingModel,
+  TokenUnit,
+  PriceType,
+} from '../types'
 import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
 
 function SectionTitle(props: { children: React.ReactNode }) {
@@ -46,6 +51,43 @@ function SectionTitle(props: { children: React.ReactNode }) {
     <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase'>
       {props.children}
     </h2>
+  )
+}
+
+function getChannelProvider(channelGroup?: PricingChannelGroup): string {
+  if (!channelGroup) return ''
+  return (
+    channelGroup.owner_username ||
+    (channelGroup.owner_user_id > 0 ? `#${channelGroup.owner_user_id}` : '')
+  )
+}
+
+function ChannelGroupCell(props: {
+  group: string
+  channelGroup?: PricingChannelGroup
+  showProvider?: boolean
+}) {
+  const { t } = useTranslation()
+  const { group, channelGroup, showProvider = true } = props
+  if (!channelGroup) {
+    return <GroupBadge group={group} size='sm' />
+  }
+
+  return (
+    <div className='min-w-0'>
+      <div className='text-foreground truncate text-sm font-medium'>
+        {channelGroup.name || group}
+      </div>
+      <div className='text-muted-foreground/60 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]'>
+        <span className='font-mono'>{group}</span>
+        {channelGroup.tag && <span>{channelGroup.tag}</span>}
+        {showProvider && getChannelProvider(channelGroup) && (
+          <span>
+            {t('Provided by')} {getChannelProvider(channelGroup)}
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -414,7 +456,8 @@ function AutoGroupChain(props: { model: PricingModel; autoGroups: string[] }) {
 function GroupPricingSection(props: {
   model: PricingModel
   groupRatio: Record<string, number>
-  usableGroup: Record<string, { desc: string; ratio: number }>
+  usableGroup: Record<string, string>
+  channelGroups: Record<string, PricingChannelGroup>
   autoGroups: string[]
   priceRate: number
   usdExchangeRate: number
@@ -426,6 +469,7 @@ function GroupPricingSection(props: {
     model,
     groupRatio,
     usableGroup,
+    channelGroups,
     autoGroups,
     priceRate,
     usdExchangeRate,
@@ -437,6 +481,14 @@ function GroupPricingSection(props: {
     () => getAvailableGroups(model, usableGroup || {}),
     [model, usableGroup]
   )
+  const hasChannelGroups = availableGroups.some((group) => channelGroups[group])
+  const hasAnyChannelGroup = (model.enable_groups || []).some(
+    (group) => channelGroups[group]
+  )
+  const sectionTitle =
+    hasChannelGroups || hasAnyChannelGroup
+      ? t('Pricing by Channel')
+      : t('Pricing by Group')
 
   const isTokenBased = isTokenBasedModel(model)
   const tokenUnitLabel = tokenUnit === 'K' ? '1K' : '1M'
@@ -459,11 +511,11 @@ function GroupPricingSection(props: {
   if (availableGroups.length === 0) {
     return (
       <section className='py-4'>
-        <SectionTitle>{t('Pricing by Group')}</SectionTitle>
+        <SectionTitle>{sectionTitle}</SectionTitle>
         <AutoGroupChain model={model} autoGroups={autoGroups} />
         <p className='text-muted-foreground text-sm'>
           {t(
-            'This model is not available in any group, or no group pricing information is configured.'
+            'This model is not available in any community channel, or no channel pricing information is configured.'
           )}
         </p>
       </section>
@@ -479,7 +531,7 @@ function GroupPricingSection(props: {
     if (dynamicTiers.length === 0) {
       return (
         <section className='py-4'>
-          <SectionTitle>{t('Pricing by Group')}</SectionTitle>
+          <SectionTitle>{sectionTitle}</SectionTitle>
           <AutoGroupChain model={model} autoGroups={autoGroups} />
           <div className='rounded-lg border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/10'>
             <div className='text-amber-800 text-sm font-medium dark:text-amber-200'>
@@ -521,15 +573,19 @@ function GroupPricingSection(props: {
 
     return (
       <section className='py-4'>
-        <SectionTitle>{t('Pricing by Group')}</SectionTitle>
+        <SectionTitle>{sectionTitle}</SectionTitle>
         <AutoGroupChain model={model} autoGroups={autoGroups} />
         <div className='space-y-3'>
           {availableGroups.map((group) => {
             const ratio = groupRatio[group] || 1
+            const channelGroup = channelGroups[group]
             return (
               <div key={group} className='overflow-hidden rounded-lg border'>
                 <div className='bg-muted/20 flex items-center justify-between gap-3 border-b px-3 py-2'>
-                  <GroupBadge group={group} size='sm' />
+                  <ChannelGroupCell
+                    group={group}
+                    channelGroup={channelGroup}
+                  />
                   <span className='text-muted-foreground font-mono text-xs'>
                     {ratio}x
                   </span>
@@ -597,14 +653,21 @@ function GroupPricingSection(props: {
 
   return (
     <section className='py-4'>
-      <SectionTitle>{t('Pricing by Group')}</SectionTitle>
+      <SectionTitle>{sectionTitle}</SectionTitle>
       <AutoGroupChain model={model} autoGroups={autoGroups} />
       <div className='-mx-4 sm:mx-0'>
         <Table className='text-sm'>
           <TableHeader>
             <TableRow className='hover:bg-transparent'>
-              <TableHead className={thClass}>{t('Group')}</TableHead>
-              <TableHead className={thClass}>{t('Ratio')}</TableHead>
+              <TableHead className={thClass}>
+              {hasChannelGroups ? t('Channel') : t('Group')}
+              </TableHead>
+              {hasChannelGroups && (
+                <TableHead className={thClass}>{t('Provider')}</TableHead>
+              )}
+              <TableHead className={thClass}>
+                {hasChannelGroups ? t('Channel ratio') : t('Ratio')}
+              </TableHead>
               {isTokenBased ? (
                 <>
                   <TableHead className={`${thClass} text-right`}>
@@ -632,11 +695,22 @@ function GroupPricingSection(props: {
           <TableBody>
             {availableGroups.map((group) => {
               const ratio = groupRatio[group] || 1
+              const channelGroup = channelGroups[group]
+              const provider = getChannelProvider(channelGroup)
               return (
                 <TableRow key={group}>
                   <TableCell className='py-2.5'>
-                    <GroupBadge group={group} size='sm' />
+                    <ChannelGroupCell
+                      group={group}
+                      channelGroup={channelGroup}
+                      showProvider={false}
+                    />
                   </TableCell>
+                  {hasChannelGroups && (
+                    <TableCell className='text-muted-foreground py-2.5 text-xs font-medium'>
+                      {provider || '-'}
+                    </TableCell>
+                  )}
                   <TableCell className='text-muted-foreground py-2.5 font-mono text-xs'>
                     {ratio}x
                   </TableCell>
@@ -714,7 +788,8 @@ function GroupPricingSection(props: {
 export interface ModelDetailsContentProps {
   model: PricingModel
   groupRatio: Record<string, number>
-  usableGroup: Record<string, { desc: string; ratio: number }>
+  usableGroup: Record<string, string>
+  channelGroups: Record<string, PricingChannelGroup>
   endpointMap: Record<string, { path?: string; method?: string }>
   autoGroups: string[]
   priceRate: number
@@ -728,6 +803,7 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
     model,
     groupRatio,
     usableGroup,
+    channelGroups,
     endpointMap,
     autoGroups,
     priceRate,
@@ -760,6 +836,7 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
         model={model}
         groupRatio={groupRatio}
         usableGroup={usableGroup}
+        channelGroups={channelGroups}
         autoGroups={autoGroups}
         priceRate={priceRate}
         usdExchangeRate={usdExchangeRate}
@@ -807,6 +884,7 @@ export function ModelDetails() {
     models,
     groupRatio,
     usableGroup,
+    channelGroups,
     endpointMap,
     autoGroups,
     isLoading,
@@ -884,6 +962,7 @@ export function ModelDetails() {
           model={model}
           groupRatio={groupRatio || {}}
           usableGroup={usableGroup || {}}
+          channelGroups={channelGroups || {}}
           autoGroups={autoGroups || []}
           priceRate={priceRate ?? 1}
           usdExchangeRate={usdExchangeRate ?? 1}

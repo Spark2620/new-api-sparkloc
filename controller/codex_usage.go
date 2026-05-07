@@ -37,6 +37,9 @@ func GetCodexChannelUsage(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "channel type is not Codex"})
 		return
 	}
+	if !ensureChannelOwner(c, ch) {
+		return
+	}
 	if ch.ChannelInfo.IsMultiKey {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "multi-key channel is not supported"})
 		return

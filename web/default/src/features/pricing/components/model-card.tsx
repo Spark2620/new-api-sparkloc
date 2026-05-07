@@ -13,7 +13,7 @@ import {
   getDynamicDisplayGroupRatio,
   getDynamicPricingSummary,
 } from '../lib/dynamic-price'
-import type { PricingModel, TokenUnit } from '../types'
+import type { PricingChannelGroup, PricingModel, TokenUnit } from '../types'
 
 export interface ModelCardProps {
   model: PricingModel
@@ -22,6 +22,7 @@ export interface ModelCardProps {
   usdExchangeRate?: number
   tokenUnit?: TokenUnit
   showRechargePrice?: boolean
+  channelGroups?: Record<string, PricingChannelGroup>
 }
 
 export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
@@ -54,6 +55,14 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
     : null
 
   const primaryGroup = groups[0]
+  const primaryChannelGroup = primaryGroup
+    ? props.channelGroups?.[primaryGroup]
+    : undefined
+  const primaryProvider =
+    primaryChannelGroup?.owner_username ||
+    (primaryChannelGroup && primaryChannelGroup.owner_user_id > 0
+      ? `#${primaryChannelGroup.owner_user_id}`
+      : '')
   const bottomTags = [...endpoints.slice(0, 2), ...tags.slice(0, 2)]
   const hiddenCount =
     Math.max(groups.length - 1, 0) +
@@ -182,8 +191,9 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
       {/* Footer row 1: group + billing type */}
       <div className='mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 sm:mt-4'>
         {primaryGroup && (
-          <span className='text-muted-foreground text-xs font-medium'>
-            {primaryGroup} {t('Groups')}
+          <span className='text-muted-foreground min-w-0 truncate text-xs font-medium'>
+            {primaryChannelGroup?.name || primaryGroup}
+            {primaryProvider ? ` - ${primaryProvider}` : ''}
           </span>
         )}
         <span className='text-muted-foreground text-xs font-medium'>

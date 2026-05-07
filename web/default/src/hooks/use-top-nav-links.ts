@@ -15,6 +15,8 @@ const DEFAULT_HEADER_NAV_MODULES = {
   home: true,
   console: true,
   pricing: { enabled: true, requireAuth: false },
+  leaderboard: { enabled: true, requireAuth: true },
+  channelAvailability: { enabled: true, requireAuth: true },
   docs: true,
   about: true,
 }
@@ -26,6 +28,8 @@ const DEFAULT_HEADER_NAV_MODULES = {
  *   home: true,
  *   console: true,
  *   pricing: { enabled: true, requireAuth: false },
+ *   leaderboard: { enabled: true, requireAuth: true },
+ *   channelAvailability: { enabled: true, requireAuth: true },
  *   docs: true,
  *   about: true
  * }
@@ -74,6 +78,31 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Model Square'), href: '/pricing', disabled })
   }
 
+  // Leaderboard
+  const leaderboard = modules?.leaderboard
+  const resolvedLeaderboard =
+    leaderboard && typeof leaderboard === 'object'
+      ? leaderboard
+      : DEFAULT_HEADER_NAV_MODULES.leaderboard
+  if (resolvedLeaderboard?.enabled) {
+    const disabled = resolvedLeaderboard.requireAuth && !isAuthed
+    links.push({ title: t('Leaderboard'), href: '/leaderboard', disabled })
+  }
+
+  // Channel availability
+  const channelAvailability = modules?.channelAvailability
+  const resolvedChannelAvailability =
+    channelAvailability && typeof channelAvailability === 'object'
+      ? channelAvailability
+      : DEFAULT_HEADER_NAV_MODULES.channelAvailability
+  if (resolvedChannelAvailability?.enabled) {
+    const disabled = resolvedChannelAvailability.requireAuth && !isAuthed
+    links.push({
+      title: t('Channel Availability'),
+      href: '/channel-availability',
+      disabled,
+    })
+  }
   // Docs (supports external links)
   if (modules?.docs !== false) {
     if (docsLink) {

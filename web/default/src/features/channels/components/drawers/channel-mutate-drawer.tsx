@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
+import { useIsAdmin } from '@/hooks/use-admin'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useHiddenClickUnlock } from '@/hooks/use-hidden-click-unlock'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -72,7 +73,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -92,13 +92,13 @@ import {
   getAllModels,
   getChannel,
   getChannelKey,
-  getGroups,
   getPrefillGroups,
   refreshCodexCredential,
   updateChannel,
 } from '../../api'
 import {
   ADD_MODE_OPTIONS,
+  CHANNEL_SUPPLY_TAG_OPTIONS,
   CHANNEL_TYPE_OPTIONS,
   CHANNEL_TYPE_WARNINGS,
   ERROR_MESSAGES,
@@ -197,7 +197,6 @@ const MODEL_MAPPING_PREVIEW_FALLBACK: Array<{
 }> = [{ source: 'client-model', target: 'upstream-model' }]
 
 const ADVANCED_SETTINGS_EXPANDED_KEY = 'channel-advanced-settings-expanded'
-const UPSTREAM_DETECTED_MODEL_PREVIEW_LIMIT = 8
 
 function readAdvancedSettingsPreference(): boolean {
   if (typeof window === 'undefined') return false
@@ -210,42 +209,12 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     values.param_override?.trim() ||
     values.header_override?.trim() ||
     values.status_code_mapping?.trim() ||
-    values.tag?.trim() ||
-    values.remark?.trim() ||
-    values.priority ||
-    values.weight ||
-    values.proxy?.trim() ||
-    values.system_prompt?.trim() ||
+    values.test_model?.trim() ||
     values.force_format ||
     values.thinking_to_content ||
     values.pass_through_body_enabled ||
-    values.system_prompt_override ||
-    values.claude_beta_query ||
-    values.upstream_model_update_check_enabled ||
-    values.upstream_model_update_auto_sync_enabled ||
-    values.upstream_model_update_ignored_models?.trim()
+    values.claude_beta_query
   )
-}
-
-function parseSettingsRecord(
-  settings: string | undefined
-): Record<string, unknown> {
-  if (!settings?.trim()) return {}
-  try {
-    const parsed = JSON.parse(settings)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>
-    }
-  } catch {
-    return {}
-  }
-  return {}
-}
-
-function formatUnixTime(timestamp: unknown): string {
-  const seconds = Number(timestamp)
-  if (!Number.isFinite(seconds) || seconds <= 0) return '-'
-  return new Date(seconds * 1000).toLocaleString()
 }
 
 function CardHeading({ title, icon }: { title: string; icon?: ReactNode }) {
@@ -278,6 +247,7 @@ export function ChannelMutateDrawer({
   currentRow,
 }: ChannelMutateDrawerProps) {
   const { t } = useTranslation()
+  const isAdmin = useIsAdmin()
   const queryClient = useQueryClient()
   const { setOpen } = useChannels()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -317,12 +287,6 @@ export function ChannelMutateDrawer({
     enabled: isEditing && Boolean(currentRow?.id),
   })
 
-  // Fetch available groups
-  const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
-    queryKey: ['groups'],
-    queryFn: getGroups,
-  })
-
   // Fetch all available models
   const { data: allModelsData } = useQuery({
     queryKey: ['channel_models'],
@@ -333,6 +297,7 @@ export function ChannelMutateDrawer({
   const { data: prefillGroupsData } = useQuery({
     queryKey: ['prefill_groups', 'model'],
     queryFn: () => getPrefillGroups('model'),
+    enabled: open && isAdmin,
   })
 
   const { copyToClipboard } = useCopyToClipboard()
@@ -371,16 +336,11 @@ export function ChannelMutateDrawer({
   const multiKeyMode = form.watch('multi_key_mode')
   const multiKeyType = form.watch('multi_key_type')
   const keyMode = form.watch('key_mode')
-  const currentGroups = form.watch('group')
   const currentType = form.watch('type')
   const currentBaseUrl = form.watch('base_url')
   const currentModels = form.watch('models')
   const currentModelMapping = form.watch('model_mapping')
   const awsKeyType = form.watch('aws_key_type')
-  const upstreamModelUpdateCheckEnabled = form.watch(
-    'upstream_model_update_check_enabled'
-  )
-  const currentSettings = form.watch('settings')
   const {
     unlocked: doubaoApiEditUnlocked,
     handleClick: handleApiConfigSecretClick,
@@ -426,16 +386,6 @@ export function ChannelMutateDrawer({
     () => prefillGroupsData?.data || [],
     [prefillGroupsData]
   )
-
-  // Transform groups to multi-select options
-  const groupOptions = useMemo(() => {
-    if (!groupsData?.data) return []
-    const allGroups = new Set([...groupsData.data, ...(currentGroups || [])])
-    return Array.from(allGroups).map((group) => ({
-      value: group,
-      label: group,
-    }))
-  }, [groupsData, currentGroups])
 
   // Parse current models as array
   const currentModelsArray = useMemo(
@@ -556,30 +506,6 @@ export function ChannelMutateDrawer({
       ? modelMappingGuardrail.entries.length - 3
       : 0
 
-  const upstreamUpdateMeta = useMemo(() => {
-    const settings = parseSettingsRecord(currentSettings)
-    const detectedModels = Array.isArray(
-      settings.upstream_model_update_last_detected_models
-    )
-      ? settings.upstream_model_update_last_detected_models
-          .map((model) => String(model || '').trim())
-          .filter(Boolean)
-      : []
-
-    return {
-      lastCheckTime: settings.upstream_model_update_last_check_time,
-      detectedModels: Array.from(new Set(detectedModels)),
-    }
-  }, [currentSettings])
-
-  const upstreamDetectedModelsPreview = upstreamUpdateMeta.detectedModels.slice(
-    0,
-    UPSTREAM_DETECTED_MODEL_PREVIEW_LIMIT
-  )
-  const upstreamDetectedModelsOmittedCount =
-    upstreamUpdateMeta.detectedModels.length -
-    upstreamDetectedModelsPreview.length
-
   // Load channel data into form when editing
   useEffect(() => {
     if (isEditing && channelData?.data) {
@@ -616,13 +542,6 @@ export function ChannelMutateDrawer({
       }
     }
 
-    // Type 18 (Xunfei) - set default other (version)
-    if (currentType === 18) {
-      const currentOther = form.getValues('other')
-      if (!currentOther || currentOther === '') {
-        form.setValue('other', 'v2.1')
-      }
-    }
   }, [currentType, isEditing, form])
 
   // Validate base_url - warn if it ends with /v1
@@ -1162,6 +1081,65 @@ export function ChannelMutateDrawer({
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name='tag'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Tag')} *</FormLabel>
+                        <Select
+                          value={field.value || 'Openai'}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CHANNEL_SUPPLY_TAG_OPTIONS.map((tag) => (
+                              <SelectItem key={tag} value={tag}>
+                                {tag}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {t('Required supply label for this channel.')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name='supply_ratio'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Model ratio')} *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            min='0.01'
+                            step='0.01'
+                            placeholder='1'
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value) || 1)
+                            }
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t(
+                            'Model billing multiplier used when users select this channel.'
+                          )}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <FormField
@@ -1319,54 +1297,6 @@ export function ChannelMutateDrawer({
                   />
                 )}
 
-                {/* Xunfei/Spark (type 18) */}
-                {currentType === 18 && (
-                  <FormField
-                    control={form.control}
-                    name='other'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('Model Version *')}</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t('e.g., v2.1')} {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          {t(
-                            'Spark model version, e.g., v2.1 (version number in API URL)'
-                          )}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* OpenRouter (type 20) */}
-                {currentType === 20 && (
-                  <FormField
-                    control={form.control}
-                    name='is_enterprise_account'
-                    render={({ field }) => (
-                      <FormItem className='flex items-center justify-between'>
-                        <div className='space-y-0.5'>
-                          <FormLabel>{t('Enterprise Account')}</FormLabel>
-                          <FormDescription>
-                            {t(
-                              'Enable if this is an OpenRouter enterprise account with special response format'
-                            )}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                )}
-
                 {/* AWS (type 33) */}
                 {currentType === 33 && (
                   <FormField
@@ -1406,122 +1336,6 @@ export function ChannelMutateDrawer({
                       </FormItem>
                     )}
                   />
-                )}
-
-                {/* AI Proxy Library (type 21) */}
-                {currentType === 21 && (
-                  <FormField
-                    control={form.control}
-                    name='other'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('Knowledge Base ID *')}</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t('e.g., 123456')} {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          {t('Enter the knowledge base ID')}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* FastGPT (type 22) */}
-                {currentType === 22 && (
-                  <FormField
-                    control={form.control}
-                    name='base_url'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('Private Deployment URL')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t(
-                              'e.g., https://fastgpt.run/api/openapi'
-                            )}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t(
-                            'For private deployments, format: https://fastgpt.run/api/openapi'
-                          )}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* SunoAPI (type 36) */}
-                {currentType === 36 && (
-                  <FormField
-                    control={form.control}
-                    name='base_url'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {t('API Base URL (Important: Not Chat API) *')}
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t(
-                              'e.g., https://api.example.com (path before /suno)'
-                            )}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t(
-                            'Enter the path before /suno, usually just the domain'
-                          )}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Cloudflare Workers AI (type 39) */}
-                {currentType === 39 && (
-                  <FormField
-                    control={form.control}
-                    name='other'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('Account ID *')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t('e.g., d6b5da8hk1awo8nap34ube6gh')}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t('Your Cloudflare Account ID')}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* SiliconFlow (type 40) */}
-                {currentType === 40 && (
-                  <Alert>
-                    <AlertDescription>
-                      {t('Referral link:')}{' '}
-                      <a
-                        href='https://cloud.siliconflow.cn/i/hij0YNTZ'
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='text-primary underline'
-                      >
-                        {t('https://cloud.siliconflow.cn/i/hij0YNTZ')}
-                      </a>
-                    </AlertDescription>
-                  </Alert>
                 )}
 
                 {/* Vertex AI (type 41) */}
@@ -1728,31 +1542,8 @@ export function ChannelMutateDrawer({
                   />
                 )}
 
-                {/* Coze (type 49) */}
-                {currentType === 49 && (
-                  <FormField
-                    control={form.control}
-                    name='other'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('Agent ID *')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t('e.g., 7342866812345')}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t('Enter the Coze agent ID')}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
                 {/* General base_url for other types */}
-                {![3, 8, 22, 36, 45].includes(currentType) && (
+                {![3, 8, 45].includes(currentType) && (
                   <FormField
                     control={form.control}
                     name='base_url'
@@ -2107,7 +1898,7 @@ export function ChannelMutateDrawer({
               {/* ── Models & Groups ── */}
               <div className='bg-card space-y-4 rounded-xl border p-5'>
                 <CardHeading
-                  title={t('Models & Groups')}
+                  title={t('Models & Mapping')}
                   icon={<Boxes className='h-4 w-4' />}
                 />
                 <FormField
@@ -2330,32 +2121,6 @@ export function ChannelMutateDrawer({
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name='group'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('Groups *')}</FormLabel>
-                      <FormControl>
-                        {isLoadingGroups ? (
-                          <Skeleton className='h-10 w-full' />
-                        ) : (
-                          <MultiSelect
-                            options={groupOptions}
-                            selected={field.value}
-                            onChange={field.onChange}
-                            placeholder={t(FIELD_PLACEHOLDERS.GROUP)}
-                          />
-                        )}
-                      </FormControl>
-                      <FormDescription>
-                        {t(FIELD_DESCRIPTIONS.GROUP)}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <Collapsible
@@ -2372,9 +2137,7 @@ export function ChannelMutateDrawer({
                         {t('Advanced Settings')}
                       </div>
                       <div className='text-muted-foreground text-xs'>
-                        {t(
-                          'Request overrides, routing behavior, and upstream model automation'
-                        )}
+                        {t('Request overrides and provider-specific controls')}
                       </div>
                     </div>
                     <ChevronDown
@@ -2395,58 +2158,9 @@ export function ChannelMutateDrawer({
                     />
                     <div className='space-y-4'>
                       <SubHeading
-                        title={t('Routing Strategy')}
+                        title={t('Health Check')}
                         icon={<Route className='h-3.5 w-3.5' />}
                       />
-                      <div className='grid gap-4 sm:grid-cols-2'>
-                        <FormField
-                          control={form.control}
-                          name='priority'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('Priority')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type='number'
-                                  placeholder='0'
-                                  {...field}
-                                  onChange={(e) =>
-                                    field.onChange(Number(e.target.value))
-                                  }
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                {t(FIELD_DESCRIPTIONS.PRIORITY)}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name='weight'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('Weight')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type='number'
-                                  placeholder='0'
-                                  {...field}
-                                  onChange={(e) =>
-                                    field.onChange(Number(e.target.value))
-                                  }
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                {t(FIELD_DESCRIPTIONS.WEIGHT)}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
 
                       <FormField
                         control={form.control}
@@ -2467,78 +2181,6 @@ export function ChannelMutateDrawer({
                           </FormItem>
                         )}
                       />
-
-                      <FormField
-                        control={form.control}
-                        name='auto_ban'
-                        render={({ field }) => (
-                          <FormItem className='flex items-center justify-between'>
-                            <div className='space-y-0.5'>
-                              <FormLabel>{t('Auto Ban')}</FormLabel>
-                              <FormDescription>
-                                {t(FIELD_DESCRIPTIONS.AUTO_BAN)}
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value === 1}
-                                onCheckedChange={(checked) =>
-                                  field.onChange(checked ? 1 : 0)
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className='space-y-4 border-t pt-4'>
-                      <SubHeading
-                        title={t('Internal Notes')}
-                        icon={<FileText className='h-3.5 w-3.5' />}
-                      />
-                      <div className='grid gap-4 sm:grid-cols-2'>
-                        <FormField
-                          control={form.control}
-                          name='tag'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('Tag')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={t(FIELD_PLACEHOLDERS.TAG)}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                {t(FIELD_DESCRIPTIONS.TAG)}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name='remark'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('Remark')}</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder={t(FIELD_PLACEHOLDERS.REMARK)}
-                                  rows={2}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                {t(FIELD_DESCRIPTIONS.REMARK)}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
 
                     <div className='space-y-4 border-t pt-4'>
@@ -3083,193 +2725,6 @@ export function ChannelMutateDrawer({
                         )}
                       />
                     </div>
-
-                    <FormField
-                      control={form.control}
-                      name='proxy'
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('Proxy Address')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={t('socks5://user:pass@host:port')}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t(
-                              'Network proxy for this channel (supports socks5 protocol)'
-                            )}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name='system_prompt'
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('System Prompt')}</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder={t(
-                                'Enter system prompt (user prompt takes priority)'
-                              )}
-                              rows={3}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t('Default system prompt for this channel')}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name='system_prompt_override'
-                      render={({ field }) => (
-                        <FormItem className='flex items-center justify-between'>
-                          <div className='space-y-0.5'>
-                            <FormLabel>
-                              {t('System Prompt Concatenation')}
-                            </FormLabel>
-                            <FormDescription>
-                              {t(
-                                'Concatenate channel system prompt with user&apos;s prompt'
-                              )}
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    {MODEL_FETCHABLE_TYPES.has(currentType) && (
-                      <div className='space-y-3 rounded-lg border p-4'>
-                        <SubHeading
-                          title={t('Upstream Model Detection Settings')}
-                          icon={<RefreshCw className='h-3.5 w-3.5' />}
-                        />
-                        <div className='divide-border space-y-0 divide-y border-y'>
-                          <FormField
-                            control={form.control}
-                            name='upstream_model_update_check_enabled'
-                            render={({ field }) => (
-                              <FormItem className='flex items-center justify-between px-4 py-3'>
-                                <div className='space-y-0.5'>
-                                  <FormLabel>
-                                    {t('Upstream Model Update Check')}
-                                  </FormLabel>
-                                  <FormDescription>
-                                    {t(
-                                      'Periodically check for upstream model changes'
-                                    )}
-                                  </FormDescription>
-                                </div>
-                                <FormControl>
-                                  <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name='upstream_model_update_auto_sync_enabled'
-                            render={({ field }) => (
-                              <FormItem className='flex items-center justify-between px-4 py-3'>
-                                <div className='space-y-0.5'>
-                                  <FormLabel>
-                                    {t('Auto Sync Upstream Models')}
-                                  </FormLabel>
-                                  <FormDescription>
-                                    {t(
-                                      'Automatically sync model list when upstream changes are detected'
-                                    )}
-                                  </FormDescription>
-                                </div>
-                                <FormControl>
-                                  <Switch
-                                    checked={field.value}
-                                    disabled={!upstreamModelUpdateCheckEnabled}
-                                    onCheckedChange={field.onChange}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <FormField
-                          control={form.control}
-                          name='upstream_model_update_ignored_models'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                {t('Ignored upstream models')}
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={t(
-                                    'e.g., gpt-4.1-nano,regex:^claude-.*$,regex:^sora-.*$'
-                                  )}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                {t(
-                                  'Comma-separated exact model names. Prefix with regex: to ignore by regular expression.'
-                                )}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className='text-muted-foreground space-y-2 border-t pt-3 text-xs'>
-                          <div>
-                            <span className='text-foreground font-medium'>
-                              {t('Last check time')}:
-                            </span>{' '}
-                            {formatUnixTime(upstreamUpdateMeta.lastCheckTime)}
-                          </div>
-                          <div>
-                            <span className='text-foreground font-medium'>
-                              {t('Last detected addable models')}:
-                            </span>{' '}
-                            {upstreamUpdateMeta.detectedModels.length === 0 ? (
-                              t('None')
-                            ) : (
-                              <>
-                                <span className='break-all'>
-                                  {upstreamDetectedModelsPreview.join(', ')}
-                                </span>
-                                {upstreamDetectedModelsOmittedCount > 0 && (
-                                  <span className='ml-1'>
-                                    {t('({{total}} total, {{omit}} omitted)', {
-                                      total:
-                                        upstreamUpdateMeta.detectedModels
-                                          .length,
-                                      omit: upstreamDetectedModelsOmittedCount,
-                                    })}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>

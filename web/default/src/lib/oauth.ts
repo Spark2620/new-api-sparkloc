@@ -51,6 +51,27 @@ export function buildLinuxDOOAuthUrl(clientId: string, state: string): string {
   return `https://connect.linux.do/oauth2/authorize?response_type=code&client_id=${clientId}&state=${state}`
 }
 
+export function buildSparklocOAuthUrl(
+  authUrl: string,
+  clientId: string,
+  state: string,
+  scopes?: string
+): string {
+  const url = new URL(authUrl)
+  const params = new URLSearchParams(url.search)
+  params.set('response_type', 'code')
+  params.set('client_id', clientId)
+  params.set('redirect_uri', `${window.location.origin}/oauth/sparkloc`)
+  params.set('state', state)
+  params.delete('scope')
+  if (scopes) {
+    url.search = `${params.toString()}&scope=${encodeURIComponent(scopes)}`
+  } else {
+    url.search = params.toString()
+  }
+  return url.toString()
+}
+
 // ============================================================================
 // OAuth Helper Functions
 // ============================================================================
@@ -123,4 +144,16 @@ export async function handleLinuxDOOAuth(clientId: string): Promise<void> {
 
   const url = buildLinuxDOOAuthUrl(clientId, state)
   window.open(url, '_blank')
+}
+
+export async function handleSparklocOAuth(
+  authUrl: string,
+  clientId: string,
+  scopes?: string
+): Promise<void> {
+  const state = await getOAuthState()
+  if (!state) return
+
+  const url = buildSparklocOAuthUrl(authUrl, clientId, state, scopes)
+  window.open(url, '_self')
 }

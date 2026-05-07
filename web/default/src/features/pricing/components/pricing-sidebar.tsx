@@ -18,7 +18,11 @@ import {
   getQuotaTypeLabels,
 } from '../constants'
 import { parseTags } from '../lib/filters'
-import type { PricingModel, PricingVendor } from '../types'
+import type {
+  PricingChannelGroup,
+  PricingModel,
+  PricingVendor,
+} from '../types'
 
 type FilterOption = {
   value: string
@@ -49,6 +53,7 @@ export interface PricingSidebarProps {
   vendors: PricingVendor[]
   groups: string[]
   groupRatios?: Record<string, number>
+  channelGroups?: Record<string, PricingChannelGroup>
   tags: string[]
   models: PricingModel[]
   hasActiveFilters: boolean
@@ -69,6 +74,20 @@ function formatGroupRatio(ratio: number | undefined): string | undefined {
     ? ratio.toString()
     : ratio.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
   return `x${formatted}`
+}
+
+function formatGroupLabel(
+  group: string,
+  channelGroups?: Record<string, PricingChannelGroup>
+): string {
+  const channelGroup = channelGroups?.[group]
+  if (!channelGroup) return group
+  const provider =
+    channelGroup.owner_username ||
+    (channelGroup.owner_user_id > 0 ? `#${channelGroup.owner_user_id}` : '')
+  return provider
+    ? `${channelGroup.name || group} - ${provider}`
+    : channelGroup.name || group
 }
 
 function FilterChip(props: {
@@ -158,11 +177,11 @@ export function PricingSidebar(props: PricingSidebarProps) {
   const groupOptions: FilterOption[] = [
     {
       value: FILTER_ALL,
-      label: t('All Groups'),
+      label: t('All Channels'),
     },
     ...props.groups.map((group) => ({
       value: group,
-      label: group,
+      label: formatGroupLabel(group, props.channelGroups),
       suffix: formatGroupRatio(props.groupRatios?.[group]),
     })),
   ]
@@ -230,7 +249,7 @@ export function PricingSidebar(props: PricingSidebarProps) {
         <div>
           <h2 className='text-foreground text-sm font-bold'>{t('Filter')}</h2>
           <p className='text-muted-foreground mt-1 text-xs'>
-            {t('Refine models by provider, group, type, and tags.')}
+            {t('Refine models by provider, channel, type, and tags.')}
           </p>
         </div>
         <Button
@@ -254,7 +273,7 @@ export function PricingSidebar(props: PricingSidebarProps) {
 
       <div className='space-y-1'>
         <FilterSection
-          title={t('Groups')}
+          title={t('Channels')}
           value={props.groupFilter}
           options={groupOptions}
           onChange={props.onGroupChange}

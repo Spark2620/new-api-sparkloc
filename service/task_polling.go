@@ -238,6 +238,13 @@ func updateSunoTasks(ctx context.Context, channelId int, taskIds []string, taskM
 		}
 		if responseItem.Status == model.TaskStatusSuccess {
 			task.Progress = "100%"
+			if !task.PrivateData.ChannelPayoutSettled {
+				if err := ApplyTaskChannelProviderPayout(task); err != nil {
+					logger.LogError(ctx, fmt.Sprintf("apply task channel payout failed for %s: %s", task.TaskID, err.Error()))
+				} else {
+					task.PrivateData.ChannelPayoutSettled = true
+				}
+			}
 		}
 		task.Data = responseItem.Data
 
@@ -493,6 +500,14 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 
 	if shouldSettle {
 		settleTaskBillingOnComplete(ctx, adaptor, task, taskResult)
+		if !task.PrivateData.ChannelPayoutSettled {
+			if err := ApplyTaskChannelProviderPayout(task); err != nil {
+				logger.LogError(ctx, fmt.Sprintf("apply task channel payout failed for %s: %s", task.TaskID, err.Error()))
+			} else {
+				task.PrivateData.ChannelPayoutSettled = true
+				persistTaskBillingState(ctx, task)
+			}
+		}
 	}
 	if shouldRefund {
 		RefundTaskQuota(ctx, task, task.FailReason)

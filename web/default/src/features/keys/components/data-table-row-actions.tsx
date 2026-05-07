@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { DotsHorizontalIcon } from '@radix-ui/react-icons'
 import { type Row } from '@tanstack/react-table'
 import {
@@ -6,7 +6,6 @@ import {
   Edit,
   Power,
   PowerOff,
-  ExternalLink,
   ArrowRightLeft,
   Copy,
   Link,
@@ -21,9 +20,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -32,9 +28,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
-import { resolveChatUrl, type ChatPreset } from '@/features/chat/lib/chat-links'
-import { sendToFluent } from '@/features/chat/lib/send-to-fluent'
 import { updateApiKeyStatus } from '../api'
 import { API_KEY_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import { apiKeySchema } from '../types'
@@ -78,51 +71,7 @@ export function DataTableRowActions<TData>({
     resolveRealKey,
   } = useApiKeys()
   const isEnabled = apiKey.status === API_KEY_STATUS.ENABLED
-  const { chatPresets, serverAddress } = useChatPresets()
   const [isTogglingStatus, setIsTogglingStatus] = useState(false)
-
-  const hasChatPresets = chatPresets.length > 0
-
-  const handleOpenChatPreset = useCallback(
-    async (preset: ChatPreset) => {
-      const realKey = await resolveRealKey(apiKey.id)
-      if (!realKey) return
-
-      if (preset.type === 'fluent') {
-        const success = sendToFluent(realKey, serverAddress)
-        if (success) {
-          toast.success(t('Sent the API key to FluentRead.'))
-        } else {
-          toast.info(
-            t(
-              'FluentRead extension not detected. Please ensure it is installed and active.'
-            )
-          )
-        }
-        return
-      }
-
-      const resolvedUrl = resolveChatUrl({
-        template: preset.url,
-        apiKey: realKey,
-        serverAddress,
-      })
-
-      if (!resolvedUrl) {
-        toast.error(t('Invalid chat link. Please contact your administrator.'))
-        return
-      }
-
-      if (typeof window === 'undefined') return
-
-      try {
-        window.open(resolvedUrl, '_blank', 'noopener')
-      } catch {
-        window.location.href = resolvedUrl
-      }
-    },
-    [resolveRealKey, apiKey.id, serverAddress, t]
-  )
 
   const handleToggleStatus = async (
     e?: React.MouseEvent<HTMLButtonElement>
@@ -248,26 +197,6 @@ export function DataTableRowActions<TData>({
               <ArrowRightLeft size={16} />
             </DropdownMenuShortcut>
           </DropdownMenuItem>
-          {hasChatPresets && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>{t('Chat')}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {chatPresets.map((preset) => (
-                  <DropdownMenuItem
-                    key={preset.id}
-                    onClick={() => handleOpenChatPreset(preset)}
-                  >
-                    {preset.name}
-                    {preset.type !== 'web' && (
-                      <DropdownMenuShortcut>
-                        <ExternalLink size={16} />
-                      </DropdownMenuShortcut>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {

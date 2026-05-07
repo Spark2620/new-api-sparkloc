@@ -379,6 +379,11 @@ func GetSelf(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	balance, err := model.GetCommunityCreditBalance(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	// Hide admin remarks: set to empty to trigger omitempty tag, ensuring the remark field is not included in JSON returned to regular users
 	user.Remark = ""
 
@@ -390,31 +395,37 @@ func GetSelf(c *gin.Context) {
 
 	// 构建响应数据，包含用户信息和权限
 	responseData := map[string]interface{}{
-		"id":                user.Id,
-		"username":          user.Username,
-		"display_name":      user.DisplayName,
-		"role":              user.Role,
-		"status":            user.Status,
-		"email":             user.Email,
-		"github_id":         user.GitHubId,
-		"discord_id":        user.DiscordId,
-		"oidc_id":           user.OidcId,
-		"wechat_id":         user.WeChatId,
-		"telegram_id":       user.TelegramId,
-		"group":             user.Group,
-		"quota":             user.Quota,
-		"used_quota":        user.UsedQuota,
-		"request_count":     user.RequestCount,
-		"aff_code":          user.AffCode,
-		"aff_count":         user.AffCount,
-		"aff_quota":         user.AffQuota,
-		"aff_history_quota": user.AffHistoryQuota,
-		"inviter_id":        user.InviterId,
-		"linux_do_id":       user.LinuxDOId,
-		"setting":           user.Setting,
-		"stripe_customer":   user.StripeCustomer,
-		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
-		"permissions":       permissions,                // 新增权限字段
+		"id":                      user.Id,
+		"username":                user.Username,
+		"display_name":            user.DisplayName,
+		"role":                    user.Role,
+		"status":                  user.Status,
+		"email":                   user.Email,
+		"github_id":               user.GitHubId,
+		"discord_id":              user.DiscordId,
+		"oidc_id":                 user.OidcId,
+		"wechat_id":               user.WeChatId,
+		"telegram_id":             user.TelegramId,
+		"group":                   user.Group,
+		"quota":                   balance.TotalAvailableQuota,
+		"legacy_quota":            balance.LegacyQuota,
+		"daily_credit":            balance.DailyCredit,
+		"earned_credit":           balance.EarnedCredit,
+		"available_quota":         balance.TotalAvailableQuota,
+		"daily_credit_expires_at": balance.DailyCreditExpiresAt,
+		"used_quota":              user.UsedQuota,
+		"request_count":           user.RequestCount,
+		"aff_code":                user.AffCode,
+		"aff_count":               user.AffCount,
+		"aff_quota":               user.AffQuota,
+		"aff_history_quota":       user.AffHistoryQuota,
+		"inviter_id":              user.InviterId,
+		"linux_do_id":             user.LinuxDOId,
+		"sparkloc_id":             user.SparklocId,
+		"setting":                 user.Setting,
+		"stripe_customer":         user.StripeCustomer,
+		"sidebar_modules":         userSetting.SidebarModules, // 正确提取sidebar_modules字段
+		"permissions":             permissions,                // 新增权限字段
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -461,7 +472,6 @@ func generateDefaultSidebarConfig(userRole int) string {
 	defaultConfig["chat"] = map[string]interface{}{
 		"enabled":    true,
 		"playground": true,
-		"chat":       true,
 	}
 
 	// 控制台区域 - 所有用户都可以访问
@@ -525,13 +535,37 @@ func GetUserModels(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	groups := service.GetUserUsableGroups(user.Group)
-	var models []string
-	for group := range groups {
-		for _, g := range model.GetGroupEnabledModels(group) {
-			if !common.StringsContains(models, g) {
-				models = append(models, g)
+	channels, err := model.GetAllChannels(0, 0, true, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	modelSet := make(map[string]struct{})
+	models := make([]string, 0)
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		if channel.Status != common.ChannelStatusEnabled {
+			continue
+		}
+		if !constant.IsSupportedChannelType(channel.Type) {
+			continue
+		}
+		channelGroup := model.ChannelGroupName(channel.Id)
+		if !service.GroupInUserUsableGroups(user.Group, channelGroup) {
+			continue
+		}
+		for _, modelName := range channel.GetModels() {
+			modelName = strings.TrimSpace(modelName)
+			if modelName == "" {
+				continue
 			}
+			if _, exists := modelSet[modelName]; exists {
+				continue
+			}
+			modelSet[modelName] = struct{}{}
+			models = append(models, modelName)
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -994,47 +1028,6 @@ func ManageUser(c *gin.Context) {
 	return
 }
 
-type emailBindRequest struct {
-	Email string `json:"email"`
-	Code  string `json:"code"`
-}
-
-func EmailBind(c *gin.Context) {
-	var req emailBindRequest
-	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
-		common.ApiError(c, errors.New("invalid request body"))
-		return
-	}
-	email := req.Email
-	code := req.Code
-	if !common.VerifyCodeWithKey(email, code, common.EmailVerificationPurpose) {
-		common.ApiErrorI18n(c, i18n.MsgUserVerificationCodeError)
-		return
-	}
-	session := sessions.Default(c)
-	id := session.Get("id")
-	user := model.User{
-		Id: id.(int),
-	}
-	err := user.FillUserById()
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	user.Email = email
-	// no need to check if this email already taken, because we have used verification code to check it
-	err = user.Update(false)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-	return
-}
-
 type topUpRequest struct {
 	Key string `json:"key"`
 }
@@ -1115,7 +1108,6 @@ type UpdateUserSettingRequest struct {
 	QuotaWarningThreshold            float64 `json:"quota_warning_threshold"`
 	WebhookUrl                       string  `json:"webhook_url,omitempty"`
 	WebhookSecret                    string  `json:"webhook_secret,omitempty"`
-	NotificationEmail                string  `json:"notification_email,omitempty"`
 	BarkUrl                          string  `json:"bark_url,omitempty"`
 	GotifyUrl                        string  `json:"gotify_url,omitempty"`
 	GotifyToken                      string  `json:"gotify_token,omitempty"`
@@ -1133,7 +1125,7 @@ func UpdateUserSetting(c *gin.Context) {
 	}
 
 	// 验证预警类型
-	if req.QuotaWarningType != dto.NotifyTypeEmail && req.QuotaWarningType != dto.NotifyTypeWebhook && req.QuotaWarningType != dto.NotifyTypeBark && req.QuotaWarningType != dto.NotifyTypeGotify {
+	if req.QuotaWarningType != dto.NotifyTypeNone && req.QuotaWarningType != dto.NotifyTypeWebhook && req.QuotaWarningType != dto.NotifyTypeBark && req.QuotaWarningType != dto.NotifyTypeGotify {
 		common.ApiErrorI18n(c, i18n.MsgSettingInvalidType)
 		return
 	}
@@ -1153,15 +1145,6 @@ func UpdateUserSetting(c *gin.Context) {
 		// 验证URL格式
 		if _, err := url.ParseRequestURI(req.WebhookUrl); err != nil {
 			common.ApiErrorI18n(c, i18n.MsgSettingWebhookInvalid)
-			return
-		}
-	}
-
-	// 如果是邮件类型，验证邮箱地址
-	if req.QuotaWarningType == dto.NotifyTypeEmail && req.NotificationEmail != "" {
-		// 验证邮箱格式
-		if !strings.Contains(req.NotificationEmail, "@") {
-			common.ApiErrorI18n(c, i18n.MsgSettingEmailInvalid)
 			return
 		}
 	}
@@ -1233,11 +1216,6 @@ func UpdateUserSetting(c *gin.Context) {
 		if req.WebhookSecret != "" {
 			settings.WebhookSecret = req.WebhookSecret
 		}
-	}
-
-	// 如果提供了通知邮箱，添加到设置中
-	if req.QuotaWarningType == dto.NotifyTypeEmail && req.NotificationEmail != "" {
-		settings.NotificationEmail = req.NotificationEmail
 	}
 
 	// 如果是Bark类型，添加Bark URL到设置中

@@ -121,7 +121,10 @@ export function ApiKeyGroupCombobox({
           <span className='flex min-w-0 flex-1 items-center justify-between gap-2 sm:gap-3'>
             <span className='min-w-0'>
               <span className='block truncate font-medium'>
-                {selectedOption?.value || placeholder || t('Select a group')}
+                {selectedOption?.label ||
+                  value ||
+                  placeholder ||
+                  t('Select a channel')}
               </span>
               {selectedOption?.desc && (
                 <span className='text-muted-foreground block truncate text-[11px] sm:text-xs'>
@@ -149,7 +152,7 @@ export function ApiKeyGroupCombobox({
             onValueChange={setSearchValue}
           />
           <CommandList className='max-h-[360px]'>
-            <CommandEmpty>{t('No group found.')}</CommandEmpty>
+            <CommandEmpty>{t('No channel found.')}</CommandEmpty>
             <CommandGroup>
               {filteredOptions.map((option) => (
                 <CommandItem
@@ -166,7 +169,7 @@ export function ApiKeyGroupCombobox({
                   />
                   <span className='min-w-0 flex-1'>
                     <span className='block truncate font-medium'>
-                      {option.value}
+                      {option.label || option.value}
                     </span>
                     {option.desc && (
                       <span className='text-muted-foreground block truncate text-xs'>

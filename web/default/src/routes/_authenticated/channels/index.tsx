@@ -1,7 +1,5 @@
 import z from 'zod'
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useAuthStore } from '@/stores/auth-store'
-import { ROLE } from '@/lib/roles'
+import { createFileRoute } from '@tanstack/react-router'
 import { Channels } from '@/features/channels'
 
 const channelsSearchSchema = z.object({
@@ -15,15 +13,6 @@ const channelsSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/_authenticated/channels/')({
-  beforeLoad: () => {
-    const { auth } = useAuthStore.getState()
-
-    if (!auth.user || auth.user.role < ROLE.ADMIN) {
-      throw redirect({
-        to: '/403',
-      })
-    }
-  },
   validateSearch: channelsSearchSchema,
   component: Channels,
 })

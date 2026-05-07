@@ -257,6 +257,7 @@ func migrateDB() error {
 
 	err := DB.AutoMigrate(
 		&Channel{},
+		&ChannelAvailabilityBucket{},
 		&Token{},
 		&User{},
 		&PasskeyCredential{},
@@ -280,6 +281,9 @@ func migrateDB() error {
 		&SubscriptionPreConsumeRecord{},
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
+		&CreditGrant{},
+		&CreditConsumptionAllocation{},
+		&CreditTransaction{},
 	)
 	if err != nil {
 		return err
@@ -305,6 +309,7 @@ func migrateDBFast() error {
 		name  string
 	}{
 		{&Channel{}, "Channel"},
+		{&ChannelAvailabilityBucket{}, "ChannelAvailabilityBucket"},
 		{&Token{}, "Token"},
 		{&User{}, "User"},
 		{&PasskeyCredential{}, "PasskeyCredential"},
@@ -328,6 +333,9 @@ func migrateDBFast() error {
 		{&SubscriptionPreConsumeRecord{}, "SubscriptionPreConsumeRecord"},
 		{&CustomOAuthProvider{}, "CustomOAuthProvider"},
 		{&UserOAuthBinding{}, "UserOAuthBinding"},
+		{&CreditGrant{}, "CreditGrant"},
+		{&CreditConsumptionAllocation{}, "CreditConsumptionAllocation"},
+		{&CreditTransaction{}, "CreditTransaction"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))

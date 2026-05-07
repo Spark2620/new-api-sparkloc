@@ -221,11 +221,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil
+			service.RecordRelayChannelSuccess(relayInfo)
 			return
 		}
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 		relayInfo.LastError = newAPIError
+		service.RecordRelayChannelFailure(relayInfo)
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
@@ -572,9 +574,17 @@ func RelayTask(c *gin.Context) {
 
 		task := model.InitTask(result.Platform, relayInfo)
 		task.PrivateData.UpstreamTaskID = result.UpstreamTaskID
+		task.PrivateData.RequestId = relayInfo.RequestId
 		task.PrivateData.BillingSource = relayInfo.BillingSource
 		task.PrivateData.SubscriptionId = relayInfo.SubscriptionId
 		task.PrivateData.TokenId = relayInfo.TokenId
+		task.PrivateData.ChannelPayoutSettled = false
+		if relayInfo.BillingSource == service.BillingSourceWallet {
+			dailyConsumed, earnedConsumed, legacyConsumed := service.GetBillingWalletConsumption(relayInfo)
+			task.PrivateData.DailyCreditConsumed = dailyConsumed
+			task.PrivateData.EarnedCreditConsumed = earnedConsumed
+			task.PrivateData.LegacyQuotaConsumed = legacyConsumed
+		}
 		task.PrivateData.BillingContext = &model.TaskBillingContext{
 			ModelPrice:      relayInfo.PriceData.ModelPrice,
 			GroupRatio:      relayInfo.PriceData.GroupRatioInfo.GroupRatio,

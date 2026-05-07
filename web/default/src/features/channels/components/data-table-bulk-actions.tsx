@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { type Table } from '@tanstack/react-table'
 import { Power, PowerOff, Tag, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useIsAdmin } from '@/hooks/use-admin'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,14 +13,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
+import { CHANNEL_SUPPLY_TAG_OPTIONS } from '../constants'
 import {
   handleBatchDelete,
   handleBatchDisable,
@@ -36,6 +44,7 @@ export function DataTableBulkActions<TData>({
   table,
 }: DataTableBulkActionsProps<TData>) {
   const { t } = useTranslation()
+  const isAdmin = useIsAdmin()
   const queryClient = useQueryClient()
   const [showTagDialog, setShowTagDialog] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -120,26 +129,28 @@ export function DataTableBulkActions<TData>({
           </TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='outline'
-              size='icon'
-              onClick={() => setShowTagDialog(true)}
-              className='size-8'
-              aria-label={t('Set tag for selected channels')}
-              title={t('Set tag for selected channels')}
-            >
-              <Tag />
-              <span className='sr-only'>
-                {t('Set tag for selected channels')}
-              </span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{t('Set tag for selected channels')}</p>
-          </TooltipContent>
-        </Tooltip>
+        {isAdmin && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='outline'
+                size='icon'
+                onClick={() => setShowTagDialog(true)}
+                className='size-8'
+                aria-label={t('Set tag for selected channels')}
+                title={t('Set tag for selected channels')}
+              >
+                <Tag />
+                <span className='sr-only'>
+                  {t('Set tag for selected channels')}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('Set tag for selected channels')}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -168,19 +179,25 @@ export function DataTableBulkActions<TData>({
             <DialogTitle>{t('Set Tag')}</DialogTitle>
             <DialogDescription>
               {t('Set a tag for')} {selectedIds.length}{' '}
-              {t('selected channel(s). Leave empty to remove tag.')}
+              {t('selected channel(s).')}
             </DialogDescription>
           </DialogHeader>
 
           <div className='grid gap-4 py-4'>
             <div className='grid gap-2'>
               <Label htmlFor='tag'>{t('Tag')}</Label>
-              <Input
-                id='tag'
-                placeholder={t('Enter tag name (optional)')}
-                value={tagValue}
-                onChange={(e) => setTagValue(e.target.value)}
-              />
+              <Select value={tagValue} onValueChange={setTagValue}>
+                <SelectTrigger id='tag'>
+                  <SelectValue placeholder={t('Select tag')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {CHANNEL_SUPPLY_TAG_OPTIONS.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -194,7 +211,9 @@ export function DataTableBulkActions<TData>({
             >
               {t('Cancel')}
             </Button>
-            <Button onClick={handleSetTag}>{t('Set Tag')}</Button>
+            <Button onClick={handleSetTag} disabled={!tagValue}>
+              {t('Set Tag')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

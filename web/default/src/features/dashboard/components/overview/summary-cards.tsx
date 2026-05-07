@@ -1,23 +1,24 @@
 import { useMemo } from 'react'
-import { Link } from '@tanstack/react-router'
-import { CreditCard } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/stores/auth-store'
+import { useQuery } from '@tanstack/react-query'
+import { getSelf } from '@/lib/api'
 import { getCurrencyLabel, isCurrencyDisplayEnabled } from '@/lib/currency'
 import { formatNumber, formatQuota } from '@/lib/format'
 import { useStatus } from '@/hooks/use-status'
-import { Button } from '@/components/ui/button'
 import { StaggerContainer, StaggerItem } from '@/components/page-transition'
 import { useSummaryCardsConfig } from '@/features/dashboard/hooks/use-dashboard-config'
 import { StatCard } from '../ui/stat-card'
 
 export function SummaryCards() {
-  const { t } = useTranslation()
-  const user = useAuthStore((state) => state.auth.user)
   const { status, loading } = useStatus()
+  const { data: selfResponse, isLoading: selfLoading } = useQuery({
+    queryKey: ['dashboard-self-summary'],
+    queryFn: getSelf,
+    staleTime: 30000,
+  })
+  const user = selfResponse?.success ? selfResponse.data : null
 
   const summaryValues = useMemo(() => {
-    const remainQuota = Number(user?.quota ?? 0)
+    const remainQuota = Number(user?.available_quota ?? user?.quota ?? 0)
     const usedQuota = Number(user?.used_quota ?? 0)
     const requestCount = Number(user?.request_count ?? 0)
 
@@ -43,12 +44,11 @@ export function SummaryCards() {
     ...summaryValues,
     currencyEnabled,
     currencyLabel,
-  }).map((config, index) => ({
+  }).map((config) => ({
     title: config.title,
     value: config.value,
     desc: config.description,
     icon: config.icon,
-    isBalance: index === 0,
   }))
 
   return (
@@ -61,22 +61,7 @@ export function SummaryCards() {
               value={it.value}
               description={it.desc}
               icon={it.icon}
-              loading={loading}
-              action={
-                it.isBalance ? (
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    className='hidden h-6 gap-1 px-2 text-xs sm:inline-flex'
-                    asChild
-                  >
-                    <Link to='/wallet'>
-                      <CreditCard className='size-3' />
-                      {t('Recharge')}
-                    </Link>
-                  </Button>
-                ) : undefined
-              }
+              loading={loading || selfLoading}
             />
           </StaggerItem>
         ))}

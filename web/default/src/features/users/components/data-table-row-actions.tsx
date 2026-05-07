@@ -8,7 +8,6 @@ import {
   PowerOff,
   ArrowUp,
   ArrowDown,
-  KeyRound,
   ShieldAlert,
   Link2,
   CreditCard,
@@ -26,7 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
-import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
+import { manageUser, resetUserTwoFA } from '../api'
 import {
   USER_STATUS,
   USER_ROLE,
@@ -46,7 +45,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
   const user = row.original
   const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
-  const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
@@ -74,22 +72,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       }
     } catch (_error) {
       toast.error(t(ERROR_MESSAGES.UNEXPECTED))
-    }
-  }
-
-  const handleResetPasskey = async () => {
-    try {
-      const result = await resetUserPasskey(user.id)
-      if (result.success) {
-        toast.success(t('Passkey reset successfully'))
-        triggerRefresh()
-      } else {
-        toast.error(result.message || t('Failed to reset Passkey'))
-      }
-    } catch (_error) {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
-    } finally {
-      setResetPasskeyOpen(false)
     }
   }
 
@@ -205,19 +187,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           <DropdownMenuItem
             onSelect={(event) => {
               event.preventDefault()
-              setResetPasskeyOpen(true)
-            }}
-            disabled={isRoot}
-          >
-            {t('Reset Passkey')}
-            <DropdownMenuShortcut>
-              <KeyRound size={16} />
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault()
               setResetTwoFAOpen(true)
             }}
             disabled={isRoot}
@@ -242,15 +211,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <ConfirmDialog
-        open={resetPasskeyOpen}
-        onOpenChange={setResetPasskeyOpen}
-        title={t('Reset Passkey')}
-        desc={`Reset Passkey for ${user.username}? The user will need to register a new Passkey before using passwordless login.`}
-        confirmText='Reset Passkey'
-        handleConfirm={handleResetPasskey}
-      />
 
       <ConfirmDialog
         open={resetTwoFAOpen}

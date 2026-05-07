@@ -36,6 +36,9 @@ type Channel struct {
 	BalanceUpdatedTime int64   `json:"balance_updated_time" gorm:"bigint"`
 	Models             string  `json:"models"`
 	Group              string  `json:"group" gorm:"type:varchar(64);default:'default'"`
+	OwnerUserId        int     `json:"owner_user_id" gorm:"index;default:0"`
+	OwnerUsername      string  `json:"owner_username" gorm:"-"`
+	SupplyRatio        float64 `json:"supply_ratio" gorm:"default:1"`
 	UsedQuota          int64   `json:"used_quota" gorm:"bigint;default:0"`
 	ModelMapping       *string `json:"model_mapping" gorm:"type:text"`
 	//MaxInputTokens     *int    `json:"max_input_tokens" gorm:"default:0"`
@@ -201,10 +204,11 @@ func (channel *Channel) GetModels() []string {
 }
 
 func (channel *Channel) GetGroups() []string {
-	if channel.Group == "" {
+	groupValue := channel.EffectiveGroup()
+	if groupValue == "" {
 		return []string{}
 	}
-	groups := strings.Split(strings.Trim(channel.Group, ","), ",")
+	groups := strings.Split(strings.Trim(groupValue, ","), ",")
 	for i, group := range groups {
 		groups[i] = strings.TrimSpace(group)
 	}
@@ -370,11 +374,20 @@ func BatchInsertChannels(channels []Channel) error {
 	}()
 
 	for _, chunk := range lo.Chunk(channels, 50) {
+		for i := range chunk {
+			chunk[i].EnsureSupplyDefaults()
+		}
 		if err := tx.Create(&chunk).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
-		for _, channel_ := range chunk {
+		for i := range chunk {
+			channel_ := &chunk[i]
+			channel_.Group = ChannelGroupName(channel_.Id)
+			if err := tx.Model(channel_).Select("group").Update("group", channel_.Group).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
 			if err := channel_.AddAbilities(tx); err != nil {
 				tx.Rollback()
 				return err
@@ -420,6 +433,36 @@ func (channel *Channel) GetWeight() int {
 	return int(*channel.Weight)
 }
 
+func (channel *Channel) EnsureSupplyDefaults() {
+	if channel.SupplyRatio <= 0 {
+		channel.SupplyRatio = 1
+	}
+}
+
+func (channel *Channel) EffectiveGroup() string {
+	if channel.Id > 0 {
+		return ChannelGroupName(channel.Id)
+	}
+	if strings.TrimSpace(channel.Group) != "" {
+		return channel.Group
+	}
+	return "default"
+}
+
+func ChannelGroupName(channelId int) string {
+	return fmt.Sprintf("channel-%d", channelId)
+}
+
+func ParseChannelGroupName(group string) (int, bool) {
+	const prefix = "channel-"
+	group = strings.TrimSpace(group)
+	if !strings.HasPrefix(group, prefix) {
+		return 0, false
+	}
+	id := common.String2Int(strings.TrimPrefix(group, prefix))
+	return id, id > 0
+}
+
 func (channel *Channel) GetBaseURL() string {
 	if channel.BaseURL == nil {
 		return ""
@@ -446,16 +489,34 @@ func (channel *Channel) GetStatusCodeMapping() string {
 }
 
 func (channel *Channel) Insert() error {
-	var err error
-	err = DB.Create(channel).Error
-	if err != nil {
+	channel.EnsureSupplyDefaults()
+	tx := DB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if err := tx.Create(channel).Error; err != nil {
+		tx.Rollback()
 		return err
 	}
-	err = channel.AddAbilities(nil)
-	return err
+	if channel.Id > 0 {
+		channel.Group = ChannelGroupName(channel.Id)
+		if err := tx.Model(channel).Select("group").Update("group", channel.Group).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := channel.AddAbilities(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
 }
 
 func (channel *Channel) Update() error {
+	channel.EnsureSupplyDefaults()
+	if channel.Id > 0 {
+		channel.Group = ChannelGroupName(channel.Id)
+	}
 	// If this is a multi-key channel, recalculate MultiKeySize based on the current key list to avoid inconsistency after editing keys
 	if channel.ChannelInfo.IsMultiKey {
 		var keyStr string

@@ -18,7 +18,6 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/router"
 	"github.com/QuantumNous/new-api/service"
@@ -40,12 +39,6 @@ var buildFS embed.FS
 //go:embed web/default/dist/index.html
 var indexPage []byte
 
-//go:embed web/classic/dist
-var classicBuildFS embed.FS
-
-//go:embed web/classic/dist/index.html
-var classicIndexPage []byte
-
 func main() {
 	startTime := time.Now()
 
@@ -61,6 +54,9 @@ func main() {
 	}
 	if common.DebugEnabled {
 		common.SysLog("running in debug mode")
+	}
+	if !common.GinAccessLogEnabled {
+		common.SysLog("gin access log disabled")
 	}
 
 	defer func() {
@@ -189,11 +185,9 @@ func main() {
 	InjectGoogleAnalytics()
 
 	// 设置路由
-	router.SetRouter(server, router.ThemeAssets{
-		DefaultBuildFS:   buildFS,
-		DefaultIndexPage: indexPage,
-		ClassicBuildFS:   classicBuildFS,
-		ClassicIndexPage: classicIndexPage,
+	router.SetRouter(server, router.WebAssets{
+		BuildFS:   buildFS,
+		IndexPage: indexPage,
 	})
 	var port = os.Getenv("PORT")
 	if port == "" {
@@ -227,7 +221,6 @@ func InjectUmamiAnalytics() {
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--umami-->\n")
 	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
-	classicIndexPage = bytes.ReplaceAll(classicIndexPage, placeholder, analyticsInject)
 }
 
 func InjectGoogleAnalytics() {
@@ -251,13 +244,21 @@ func InjectGoogleAnalytics() {
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--Google Analytics-->\n")
 	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
-	classicIndexPage = bytes.ReplaceAll(classicIndexPage, placeholder, analyticsInject)
 }
 
 func InitResources() error {
 	// Initialize resources here if needed
 	// This is a placeholder function for future resource initialization
-	err := godotenv.Load(".env")
+	envFiles := []string{".env"}
+	if envFile := strings.TrimSpace(os.Getenv("ENV_FILE")); envFile != "" {
+		envFiles = append(envFiles, envFile)
+	} else {
+		appEnv := strings.TrimSpace(strings.ToLower(os.Getenv("APP_ENV")))
+		if appEnv != "" && appEnv != "prod" && appEnv != "production" {
+			envFiles = append(envFiles, ".env."+appEnv)
+		}
+	}
+	err := godotenv.Overload(envFiles...)
 	if err != nil {
 		if common.DebugEnabled {
 			common.SysLog("No .env file found, using default environment variables. If needed, please create a .env file and set the relevant variables.")
@@ -319,13 +320,6 @@ func InitResources() error {
 	}
 	// Register user language loader for lazy loading
 	i18n.SetUserLangLoader(model.GetUserLanguage)
-
-	// Load custom OAuth providers from database
-	err = oauth.LoadCustomProviders()
-	if err != nil {
-		common.SysError("failed to load custom OAuth providers: " + err.Error())
-		// Don't return error, custom OAuth is not critical
-	}
 
 	return nil
 }

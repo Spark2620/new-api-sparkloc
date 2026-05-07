@@ -21,13 +21,14 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
   chat: {
     enabled: true,
     playground: true,
-    chat: true,
   },
   console: {
     enabled: true,
     detail: true,
     token: true,
+    channel: true,
     log: true,
+    channelEarnings: true,
     midjourney: true,
     task: true,
   },
@@ -84,14 +85,14 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/keys': { section: 'console', module: 'token' },
   '/usage-logs': { section: 'console', module: 'log' },
   '/usage-logs/common': { section: 'console', module: 'log' },
+  '/channel-earnings': { section: 'console', module: 'channelEarnings' },
   '/usage-logs/drawing': { section: 'console', module: 'midjourney' },
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/wallet': { section: 'personal', module: 'topup' },
   '/profile': { section: 'personal', module: 'personal' },
-  '/channels': { section: 'admin', module: 'channel' },
+  '/channels': { section: 'console', module: 'channel' },
   '/models': { section: 'admin', module: 'models' },
   '/models/metadata': { section: 'admin', module: 'models' },
-  '/models/deployments': { section: 'admin', module: 'models' },
   '/users': { section: 'admin', module: 'user' },
   '/redemption-codes': { section: 'admin', module: 'redemption' },
   '/subscriptions': { section: 'admin', module: 'subscription' },
@@ -181,17 +182,6 @@ function isNavItemVisible(
   userConfig: SidebarModulesUserConfig
 ): boolean {
   // Handle dynamic chat presets type — also runs the admin × user AND gate
-  if ('type' in item && item.type === 'chat-presets') {
-    const adminChat = adminConfig.chat
-    const adminAllowed = Boolean(adminChat?.enabled && adminChat.chat === true)
-    if (!adminAllowed) return false
-    if (!userConfig) return true
-    const userChat = userConfig.chat
-    if (!userChat) return true
-    if (userChat.enabled === false) return false
-    return userChat.chat !== false
-  }
-
   // Handle direct link type
   if ('url' in item && item.url) {
     const configUrls = item.configUrls ?? [item.url]

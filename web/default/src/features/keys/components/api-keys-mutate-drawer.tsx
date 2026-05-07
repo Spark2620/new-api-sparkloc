@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
@@ -11,10 +11,9 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getUserModels, getUserGroups } from '@/lib/api'
+import { getUserModels } from '@/lib/api'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { cn } from '@/lib/utils'
-import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -44,6 +43,8 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { DateTimePicker } from '@/components/datetime-picker'
 import { MultiSelect } from '@/components/multi-select'
+import { getChannels } from '@/features/channels/api'
+import { getChannelTypeLabel } from '@/features/channels/lib'
 import { createApiKey, updateApiKey, getApiKey } from '../api'
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import {
@@ -104,10 +105,8 @@ export function ApiKeysMutateDrawer({
   const { t } = useTranslation()
   const isUpdate = !!currentRow
   const { triggerRefresh } = useApiKeys()
-  const { status } = useStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const defaultUseAutoGroup = status?.default_use_auto_group === true
 
   // Fetch models
   const { data: modelsData } = useQuery({
@@ -116,36 +115,56 @@ export function ApiKeysMutateDrawer({
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   })
 
-  // Fetch groups
-  const { data: groupsData } = useQuery({
-    queryKey: ['user-groups'],
-    queryFn: getUserGroups,
+  const { data: channelsData } = useQuery({
+    queryKey: ['api-key-community-channels'],
+    queryFn: () => getChannels({ status: 'enabled', page_size: 100 }),
     staleTime: 5 * 60 * 1000,
   })
 
   const models = modelsData?.data || []
-  const groupsRaw = groupsData?.data || {}
-  const groups: ApiKeyGroupOption[] = Object.entries(groupsRaw).map(
-    ([key, info]) => ({
-      value: key,
-      label: key,
-      desc: info.desc || key,
-      ratio: info.ratio,
-    })
-  )
+  const defaultChannelGroup = useMemo(() => {
+    return 'auto'
+  }, [])
 
-  // Add auto group if configured
-  if (!groups.some((g) => g.value === 'auto')) {
-    groups.unshift({
+  const groups: ApiKeyGroupOption[] = useMemo(() => {
+    const autoOption: ApiKeyGroupOption = {
       value: 'auto',
-      label: 'auto',
-      desc: t('Auto (Circuit Breaker)'),
+      label: t('Auto'),
+      desc: t('Automatically select an available channel'),
+      ratio: 1,
+    }
+
+    const channelOptions = (channelsData?.data?.items || []).map((channel) => {
+      const modelsPreview = (channel.models || '')
+        .split(',')
+        .map((model) => model.trim())
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(', ')
+      const creator =
+        channel.owner_username ||
+        (channel.owner_user_id > 0 ? `#${channel.owner_user_id}` : t('Unknown'))
+      const typeLabel = t(getChannelTypeLabel(channel.type))
+      const details = [
+        `${t('Channel Creator')}: ${creator}`,
+        typeLabel,
+        channel.tag || undefined,
+        modelsPreview || undefined,
+      ].filter(Boolean)
+
+      return {
+        value: `channel-${channel.id}`,
+        label: channel.name,
+        desc: details.join(' - '),
+        ratio: channel.supply_ratio || 1,
+      }
     })
-  }
+    return [autoOption, ...channelOptions]
+  }, [channelsData, t])
 
   const form = useForm<ApiKeyFormValues>({
     resolver: zodResolver(apiKeyFormSchema),
-    defaultValues: getApiKeyFormDefaultValues(defaultUseAutoGroup),
+    defaultValues: getApiKeyFormDefaultValues(defaultChannelGroup),
   })
 
   // Load existing data when updating
@@ -159,11 +178,26 @@ export function ApiKeysMutateDrawer({
       })
     } else if (open && !isUpdate) {
       // For create, reset to defaults
-      form.reset(getApiKeyFormDefaultValues(defaultUseAutoGroup))
+      form.reset(getApiKeyFormDefaultValues(defaultChannelGroup))
     }
-  }, [open, isUpdate, currentRow, form, defaultUseAutoGroup])
+  }, [open, isUpdate, currentRow, form, defaultChannelGroup])
+
+  useEffect(() => {
+    if (!open || isUpdate || groups.length === 0) return
+    const currentGroup = form.getValues('group')
+    const currentExists = groups.some((group) => group.value === currentGroup)
+    if (!currentGroup || !currentExists) {
+      form.setValue('group', defaultChannelGroup)
+      form.setValue('cross_group_retry', false)
+    }
+  }, [open, isUpdate, groups, form, defaultChannelGroup])
 
   const onSubmit = async (data: ApiKeyFormValues) => {
+    if (data.group !== 'auto' && !data.group?.startsWith('channel-')) {
+      toast.error(t('Please select an enabled channel.'))
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const basePayload = transformFormDataToPayload(data)
@@ -300,15 +334,20 @@ export function ApiKeysMutateDrawer({
                 name='group'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Group')}</FormLabel>
+                    <FormLabel>{t('Channel')}</FormLabel>
                     <FormControl>
                       <ApiKeyGroupCombobox
                         options={groups}
                         value={field.value}
                         onValueChange={field.onChange}
-                        placeholder={t('Select a group')}
+                        placeholder={t('Select a channel')}
                       />
                     </FormControl>
+                    {groups.length === 0 && (
+                      <FormDescription>
+                        {t('Create an enabled channel before creating an API key.')}
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

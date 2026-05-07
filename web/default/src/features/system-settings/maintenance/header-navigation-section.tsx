@@ -27,6 +27,10 @@ const headerNavSchema = z.object({
   console: z.boolean(),
   pricingEnabled: z.boolean(),
   pricingRequireAuth: z.boolean(),
+  leaderboardEnabled: z.boolean(),
+  leaderboardRequireAuth: z.boolean(),
+  channelAvailabilityEnabled: z.boolean(),
+  channelAvailabilityRequireAuth: z.boolean(),
   docs: z.boolean(),
   about: z.boolean(),
 })
@@ -53,6 +57,22 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
     config.pricing?.requireAuth === undefined
       ? HEADER_NAV_DEFAULT.pricing.requireAuth
       : Boolean(config.pricing.requireAuth),
+  leaderboardEnabled:
+    config.leaderboard?.enabled === undefined
+      ? HEADER_NAV_DEFAULT.leaderboard?.enabled ?? true
+      : Boolean(config.leaderboard.enabled),
+  leaderboardRequireAuth:
+    config.leaderboard?.requireAuth === undefined
+      ? HEADER_NAV_DEFAULT.leaderboard?.requireAuth ?? true
+      : Boolean(config.leaderboard.requireAuth),
+  channelAvailabilityEnabled:
+    config.channelAvailability?.enabled === undefined
+      ? HEADER_NAV_DEFAULT.channelAvailability?.enabled ?? true
+      : Boolean(config.channelAvailability.enabled),
+  channelAvailabilityRequireAuth:
+    config.channelAvailability?.requireAuth === undefined
+      ? HEADER_NAV_DEFAULT.channelAvailability?.requireAuth ?? true
+      : Boolean(config.channelAvailability.requireAuth),
   docs:
     config.docs === undefined ? HEADER_NAV_DEFAULT.docs : Boolean(config.docs),
   about:
@@ -89,6 +109,16 @@ export function HeaderNavigationSection({
         ...(config.pricing ?? HEADER_NAV_DEFAULT.pricing),
         enabled: values.pricingEnabled,
         requireAuth: values.pricingRequireAuth,
+      },
+      leaderboard: {
+        ...(config.leaderboard ?? HEADER_NAV_DEFAULT.leaderboard!),
+        enabled: values.leaderboardEnabled,
+        requireAuth: values.leaderboardRequireAuth,
+      },
+      channelAvailability: {
+        ...(config.channelAvailability ?? HEADER_NAV_DEFAULT.channelAvailability!),
+        enabled: values.channelAvailabilityEnabled,
+        requireAuth: values.channelAvailabilityRequireAuth,
       },
     }
 
@@ -215,6 +245,108 @@ export function HeaderNavigationSection({
                       checked={field.value}
                       onCheckedChange={field.onChange}
                       disabled={!form.watch('pricingEnabled')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className='rounded-lg border p-4'>
+            <FormField
+              control={form.control}
+              name='leaderboardEnabled'
+              render={({ field }) => (
+                <FormItem className='flex flex-row items-start justify-between rounded-lg border p-4'>
+                  <div className='space-y-0.5 pe-4'>
+                    <FormLabel className='text-base'>
+                      {t('Leaderboard')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('Exposes the leaderboard page in the top navigation.')}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='leaderboardRequireAuth'
+              render={({ field }) => (
+                <FormItem className='mt-4 flex flex-row items-start justify-between rounded-lg border border-dashed p-4'>
+                  <div className='space-y-0.5 pe-4'>
+                    <FormLabel className='text-base'>
+                      {t('Require login to view leaderboard')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('Visitors must authenticate before accessing the leaderboard.')}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!form.watch('leaderboardEnabled')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className='rounded-lg border p-4'>
+            <FormField
+              control={form.control}
+              name='channelAvailabilityEnabled'
+              render={({ field }) => (
+                <FormItem className='flex flex-row items-start justify-between rounded-lg border p-4'>
+                  <div className='space-y-0.5 pe-4'>
+                    <FormLabel className='text-base'>
+                      {t('Channel Availability')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('Exposes passive channel health status in the top navigation.')}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='channelAvailabilityRequireAuth'
+              render={({ field }) => (
+                <FormItem className='mt-4 flex flex-row items-start justify-between rounded-lg border border-dashed p-4'>
+                  <div className='space-y-0.5 pe-4'>
+                    <FormLabel className='text-base'>
+                      {t('Require login to view channel availability')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('Visitors must authenticate before accessing channel availability.')}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!form.watch('channelAvailabilityEnabled')}
                     />
                   </FormControl>
                   <FormMessage />

@@ -95,8 +95,10 @@ export function UsageLogsFilterDialog({
         (urlFilters as CommonLogFilters).model = searchParams.model
       if (searchParams.token)
         (urlFilters as CommonLogFilters).token = searchParams.token
-      if (searchParams.group)
-        (urlFilters as CommonLogFilters).group = searchParams.group
+      if (searchParams.channel_name) {
+        ;(urlFilters as CommonLogFilters).channelName =
+          searchParams.channel_name
+      }
       if (searchParams.username)
         (urlFilters as CommonLogFilters).username = searchParams.username
       if (searchParams.requestId)
@@ -121,7 +123,7 @@ export function UsageLogsFilterDialog({
     searchParams.channel,
     searchParams.model,
     searchParams.token,
-    searchParams.group,
+    searchParams.channel_name,
     searchParams.username,
     searchParams.requestId,
     searchParams.filter,
@@ -215,11 +217,11 @@ export function UsageLogsFilterDialog({
               />
             </div>
             <FilterInput
-              id='group'
-              label={t('Group')}
-              placeholder={t('Filter by group')}
-              value={commonFilters.group || ''}
-              onChange={(value) => handleChange('group', value)}
+              id='channel_name'
+              label={t('Channel Name')}
+              placeholder={t('Filter by channel name')}
+              value={commonFilters.channelName || ''}
+              onChange={(value) => handleChange('channelName', value)}
             />
             {isAdmin && (
               <FilterInput

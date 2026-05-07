@@ -18,7 +18,7 @@ import {
 import { TableSkeleton, TableEmpty } from '@/components/data-table'
 import { DataTablePagination } from '@/components/data-table/pagination'
 import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
-import type { PricingModel, TokenUnit } from '../types'
+import type { PricingChannelGroup, PricingModel, TokenUnit } from '../types'
 import { usePricingColumns } from './pricing-columns'
 
 export interface PricingTableProps {
@@ -28,6 +28,7 @@ export interface PricingTableProps {
   usdExchangeRate?: number
   tokenUnit?: TokenUnit
   showRechargePrice?: boolean
+  channelGroups?: Record<string, PricingChannelGroup>
   onModelClick?: (modelName: string) => void
 }
 
@@ -40,6 +41,7 @@ export function PricingTable(props: PricingTableProps) {
     usdExchangeRate = 1,
     tokenUnit = DEFAULT_TOKEN_UNIT,
     showRechargePrice = false,
+    channelGroups = {},
     onModelClick,
   } = props
 
@@ -53,6 +55,7 @@ export function PricingTable(props: PricingTableProps) {
     priceRate,
     usdExchangeRate,
     showRechargePrice,
+    channelGroups,
   })
 
   const table = useReactTable({

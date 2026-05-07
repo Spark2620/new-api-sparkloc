@@ -21,8 +21,6 @@ export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
   url?: string
 }
 export type StripePaymentResponse = ApiResponse<{ pay_link: string }>
-export type AffiliateCodeResponse = ApiResponse<string>
-export type AffiliateTransferResponse = ApiResponse
 export type CreemPaymentResponse = ApiResponse<{ checkout_url: string }>
 export type WaffoPaymentResponse = ApiResponse<
   { payment_url?: string } | string
@@ -184,14 +182,6 @@ export interface AmountRequest {
 }
 
 /**
- * Affiliate quota transfer request
- */
-export interface AffiliateTransferRequest {
-  /** Quota amount to transfer */
-  quota: number
-}
-
-/**
  * User wallet data
  */
 export interface UserWalletData {
@@ -201,16 +191,20 @@ export interface UserWalletData {
   username: string
   /** Current quota balance */
   quota: number
+  /** Remaining daily check-in credit */
+  daily_credit?: number
+  /** Remaining credit earned from providing channels */
+  earned_credit?: number
+  /** Legacy quota remaining outside the community-credit pool */
+  legacy_quota?: number
+  /** Total currently available quota */
+  available_quota?: number
+  /** Unix timestamp when the current daily credit resets */
+  daily_credit_expires_at?: number
   /** Total used quota */
   used_quota: number
   /** Total request count */
   request_count: number
-  /** Affiliate quota (pending rewards) */
-  aff_quota: number
-  /** Total affiliate quota earned (historical) */
-  aff_history_quota: number
-  /** Number of successful affiliate invites */
-  aff_count: number
   /** User group */
   group: string
 }

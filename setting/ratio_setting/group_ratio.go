@@ -3,6 +3,7 @@ package ratio_setting
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/config"
@@ -82,6 +83,9 @@ func UpdateGroupRatioByJSONString(jsonStr string) error {
 }
 
 func GetGroupRatio(name string) float64 {
+	if strings.HasPrefix(name, "channel-") {
+		return 1
+	}
 	ratio, ok := groupRatioMap.Get(name)
 	if !ok {
 		common.SysLog("group ratio not found: " + name)

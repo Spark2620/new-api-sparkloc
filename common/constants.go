@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	//"os"
 	//"strconv"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,24 +17,6 @@ var SystemName = "New API"
 var Footer = ""
 var Logo = ""
 var TopUpLink = ""
-
-var themeValue atomic.Value // stores string; safe for concurrent read/write
-
-func init() {
-	themeValue.Store("classic")
-}
-
-func GetTheme() string {
-	return themeValue.Load().(string)
-}
-
-// SetTheme updates the frontend theme atomically.
-// Only "default" and "classic" are accepted; other values are silently ignored.
-func SetTheme(t string) {
-	if t == "default" || t == "classic" {
-		themeValue.Store(t)
-	}
-}
 
 // var ChatLink = ""
 // var ChatLink2 = ""
@@ -60,8 +42,8 @@ var OptionMapRWMutex sync.RWMutex
 var ItemsPerPage = 10
 var MaxRecentItems = 1000
 
-var PasswordLoginEnabled = true
-var PasswordRegisterEnabled = true
+var PasswordLoginEnabled = false
+var PasswordRegisterEnabled = false
 var EmailVerificationEnabled = false
 var GitHubOAuthEnabled = false
 var LinuxDOOAuthEnabled = false
@@ -70,45 +52,65 @@ var TelegramOAuthEnabled = false
 var TurnstileCheckEnabled = false
 var RegisterEnabled = true
 
-var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制
-var EmailAliasRestrictionEnabled = false  // 是否启用邮箱别名限制
-var EmailDomainWhitelist = []string{
-	"gmail.com",
-	"163.com",
-	"126.com",
-	"qq.com",
-	"outlook.com",
-	"hotmail.com",
-	"icloud.com",
-	"yahoo.com",
-	"foxmail.com",
-}
-var EmailLoginAuthServerList = []string{
-	"smtp.sendcloud.net",
-	"smtp.azurecomm.net",
-}
-
 var DebugEnabled bool
 var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
+var LogLevel = "info"
+var GinAccessLogEnabled = true
 
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
-
-var SMTPServer = ""
-var SMTPPort = 587
-var SMTPSSLEnabled = false
-var SMTPForceAuthLogin = false
-var SMTPAccount = ""
-var SMTPFrom = ""
-var SMTPToken = ""
 
 var GitHubClientId = ""
 var GitHubClientSecret = ""
 var LinuxDOClientId = ""
 var LinuxDOClientSecret = ""
 var LinuxDOMinimumTrustLevel = 0
+
+var SparklocAuthorizeEndpoint = "https://connect.sparkloc.com/oauth2/authorize"
+var SparklocTokenEndpoint = "https://connect.sparkloc.com/oauth2/token"
+var SparklocUserInfoEndpoint = "https://connect.sparkloc.com/oauth2/userinfo"
+var SparklocClientId = ""
+var SparklocClientSecret = ""
+var SparklocScopes = "profile email"
+
+func SparklocOAuthEnabled() bool {
+	return strings.TrimSpace(SparklocClientId) != "" &&
+		strings.TrimSpace(SparklocClientSecret) != ""
+}
+
+var CommunityCreditEnabled = true
+var CommunityCreditTimezone = "Asia/Shanghai"
+var CommunityCreditResetHour = 4
+var CommunityDailyCreditMax = 25
+var CommunityTLBonusJSON = `{"0":3,"1":5,"2":8,"3":10,"4":10}`
+var CommunityTLBonus = map[int]int{
+	0: 3,
+	1: 5,
+	2: 8,
+	3: 10,
+	4: 10,
+}
+var CommunityLeaderboardStepPoints = 100
+var CommunityLeaderboardBonusMax = 15
+
+var DiscourseBaseURL = ""
+var DiscourseAPIKey = ""
+var DiscourseAPIUsername = "system"
+var DiscourseProfileURLTemplate = ""
+var DiscourseLeaderboardURLTemplate = ""
+var DiscourseTrustLevelJSONPath = "user.trust_level,trust_level"
+var DiscourseLeaderboardScoreJSONPath = "gamification_score,user.gamification_score,leaderboard_score,score,points,user.leaderboard_score,user.score"
+var DiscourseTimeoutSeconds = 10
+
+var ChannelPayoutFromDailyRate = 0.7
+var ChannelPayoutFromEarnedRate = 0.9
+var ChannelPayoutSelfUseEnabled = false
+var ChannelPayoutConsumerOwnerDailyCap = 5
+var ChannelPayoutConsumerChannelDailyCap = 3
+var ChannelPayoutOwnerDailyDailySourceCap = 100
+var ChannelEarnedCreditTTLDays = 0
 
 var WeChatServerAddress = ""
 var WeChatServerToken = ""

@@ -1,17 +1,12 @@
 package controller
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -51,22 +46,19 @@ func GetStatus(c *gin.Context) {
 	data := gin.H{
 		"version":                     common.Version,
 		"start_time":                  common.StartTime,
-		"email_verification":          common.EmailVerificationEnabled,
-		"github_oauth":                common.GitHubOAuthEnabled,
-		"github_client_id":            common.GitHubClientId,
-		"discord_oauth":               system_setting.GetDiscordSettings().Enabled,
-		"discord_client_id":           system_setting.GetDiscordSettings().ClientId,
-		"linuxdo_oauth":               common.LinuxDOOAuthEnabled,
-		"linuxdo_client_id":           common.LinuxDOClientId,
-		"linuxdo_minimum_trust_level": common.LinuxDOMinimumTrustLevel,
-		"telegram_oauth":              common.TelegramOAuthEnabled,
-		"telegram_bot_name":           common.TelegramBotName,
-		"theme":                       system_setting.GetThemeSettings().Frontend,
+		"email_verification":          false,
+		"github_oauth":                false,
+		"discord_oauth":               false,
+		"linuxdo_oauth":               false,
+		"telegram_oauth":              false,
+		"sparkloc_oauth":              common.SparklocOAuthEnabled(),
+		"sparkloc_authorize_endpoint": common.SparklocAuthorizeEndpoint,
+		"sparkloc_client_id":          common.SparklocClientId,
+		"sparkloc_scopes":             common.SparklocScopes,
 		"system_name":                 common.SystemName,
 		"logo":                        common.Logo,
 		"footer_html":                 common.Footer,
-		"wechat_qrcode":               common.WeChatAccountQRCodeImageURL,
-		"wechat_login":                common.WeChatAuthEnabled,
+		"wechat_login":                false,
 		"server_address":              system_setting.ServerAddress,
 		"turnstile_check":             common.TurnstileCheckEnabled,
 		"turnstile_site_key":          common.TurnstileSiteKey,
@@ -85,7 +77,6 @@ func GetStatus(c *gin.Context) {
 		"data_export_default_time":      common.DataExportDefaultTime,
 		"default_collapse_sidebar":      common.DefaultCollapseSidebar,
 		"mj_notify_enabled":             setting.MjNotifyEnabled,
-		"chats":                         setting.Chats,
 		"demo_site_enabled":             operation_setting.DemoSiteEnabled,
 		"self_use_mode_enabled":         operation_setting.SelfUseModeEnabled,
 		"default_use_auto_group":        setting.DefaultUseAutoGroup,
@@ -104,20 +95,18 @@ func GetStatus(c *gin.Context) {
 		"HeaderNavModules":    common.OptionMap["HeaderNavModules"],
 		"SidebarModulesAdmin": common.OptionMap["SidebarModulesAdmin"],
 
-		"oidc_enabled":                system_setting.GetOIDCSettings().Enabled,
-		"oidc_client_id":              system_setting.GetOIDCSettings().ClientId,
-		"oidc_authorization_endpoint": system_setting.GetOIDCSettings().AuthorizationEndpoint,
-		"passkey_login":               passkeySetting.Enabled,
-		"passkey_display_name":        passkeySetting.RPDisplayName,
-		"passkey_rp_id":               passkeySetting.RPID,
-		"passkey_origins":             passkeySetting.Origins,
-		"passkey_allow_insecure":      passkeySetting.AllowInsecureOrigin,
-		"passkey_user_verification":   passkeySetting.UserVerification,
-		"passkey_attachment":          passkeySetting.AttachmentPreference,
-		"setup":                       constant.Setup,
-		"user_agreement_enabled":      legalSetting.UserAgreement != "",
-		"privacy_policy_enabled":      legalSetting.PrivacyPolicy != "",
-		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
+		"oidc_enabled":              false,
+		"passkey_login":             false,
+		"passkey_display_name":      passkeySetting.RPDisplayName,
+		"passkey_rp_id":             passkeySetting.RPID,
+		"passkey_origins":           passkeySetting.Origins,
+		"passkey_allow_insecure":    passkeySetting.AllowInsecureOrigin,
+		"passkey_user_verification": passkeySetting.UserVerification,
+		"passkey_attachment":        passkeySetting.AttachmentPreference,
+		"setup":                     constant.Setup,
+		"user_agreement_enabled":    legalSetting.UserAgreement != "",
+		"privacy_policy_enabled":    legalSetting.PrivacyPolicy != "",
+		"checkin_enabled":           operation_setting.GetCheckinSetting().Enabled,
 	}
 
 	// 根据启用状态注入可选内容
@@ -129,34 +118,6 @@ func GetStatus(c *gin.Context) {
 	}
 	if cs.FAQEnabled {
 		data["faq"] = console_setting.GetFAQ()
-	}
-
-	// Add enabled custom OAuth providers
-	customProviders := oauth.GetEnabledCustomProviders()
-	if len(customProviders) > 0 {
-		type CustomOAuthInfo struct {
-			Id                    int    `json:"id"`
-			Name                  string `json:"name"`
-			Slug                  string `json:"slug"`
-			Icon                  string `json:"icon"`
-			ClientId              string `json:"client_id"`
-			AuthorizationEndpoint string `json:"authorization_endpoint"`
-			Scopes                string `json:"scopes"`
-		}
-		providersInfo := make([]CustomOAuthInfo, 0, len(customProviders))
-		for _, p := range customProviders {
-			config := p.GetConfig()
-			providersInfo = append(providersInfo, CustomOAuthInfo{
-				Id:                    config.Id,
-				Name:                  config.Name,
-				Slug:                  config.Slug,
-				Icon:                  config.Icon,
-				ClientId:              config.ClientId,
-				AuthorizationEndpoint: config.AuthorizationEndpoint,
-				Scopes:                config.Scopes,
-			})
-		}
-		data["custom_oauth_providers"] = providersInfo
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -225,143 +186,6 @@ func GetHomePageContent(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    common.OptionMap["HomePageContent"],
-	})
-	return
-}
-
-func SendEmailVerification(c *gin.Context) {
-	email := c.Query("email")
-	if err := common.Validate.Var(email, "required,email"); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
-		return
-	}
-	parts := strings.Split(email, "@")
-	if len(parts) != 2 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "无效的邮箱地址",
-		})
-		return
-	}
-	localPart := parts[0]
-	domainPart := parts[1]
-	if common.EmailDomainRestrictionEnabled {
-		allowed := false
-		for _, domain := range common.EmailDomainWhitelist {
-			if domainPart == domain {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "The administrator has enabled the email domain name whitelist, and your email address is not allowed due to special symbols or it's not in the whitelist.",
-			})
-			return
-		}
-	}
-	if common.EmailAliasRestrictionEnabled {
-		containsSpecialSymbols := strings.Contains(localPart, "+") || strings.Contains(localPart, ".")
-		if containsSpecialSymbols {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "管理员已启用邮箱地址别名限制，您的邮箱地址由于包含特殊符号而被拒绝。",
-			})
-			return
-		}
-	}
-
-	if model.IsEmailAlreadyTaken(email) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "邮箱地址已被占用",
-		})
-		return
-	}
-	code := common.GenerateVerificationCode(6)
-	common.RegisterVerificationCodeWithKey(email, code, common.EmailVerificationPurpose)
-	subject := fmt.Sprintf("%s邮箱验证邮件", common.SystemName)
-	content := fmt.Sprintf("<p>您好，你正在进行%s邮箱验证。</p>"+
-		"<p>您的验证码为: <strong>%s</strong></p>"+
-		"<p>验证码 %d 分钟内有效，如果不是本人操作，请忽略。</p>", common.SystemName, code, common.VerificationValidMinutes)
-	err := common.SendEmail(subject, email, content)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-	return
-}
-
-func SendPasswordResetEmail(c *gin.Context) {
-	email := c.Query("email")
-	if err := common.Validate.Var(email, "required,email"); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
-		return
-	}
-	if model.IsEmailAlreadyTaken(email) {
-		code := common.GenerateVerificationCode(0)
-		common.RegisterVerificationCodeWithKey(email, code, common.PasswordResetPurpose)
-		link := fmt.Sprintf("%s/user/reset?email=%s&token=%s", system_setting.ServerAddress, email, code)
-		subject := fmt.Sprintf("%s密码重置", common.SystemName)
-		content := fmt.Sprintf("<p>您好，你正在进行%s密码重置。</p>"+
-			"<p>点击 <a href='%s'>此处</a> 进行密码重置。</p>"+
-			"<p>如果链接无法点击，请尝试点击下面的链接或将其复制到浏览器中打开：<br> %s </p>"+
-			"<p>重置链接 %d 分钟内有效，如果不是本人操作，请忽略。</p>", common.SystemName, link, link, common.VerificationValidMinutes)
-		err := common.SendEmail(subject, email, content)
-		if err != nil {
-			logger.LogError(c.Request.Context(), fmt.Sprintf("failed to send password reset email to %s: %s", email, err.Error()))
-		}
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-}
-
-type PasswordResetRequest struct {
-	Email string `json:"email"`
-	Token string `json:"token"`
-}
-
-func ResetPassword(c *gin.Context) {
-	var req PasswordResetRequest
-	err := json.NewDecoder(c.Request.Body).Decode(&req)
-	if req.Email == "" || req.Token == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
-		return
-	}
-	if !common.VerifyCodeWithKey(req.Email, req.Token, common.PasswordResetPurpose) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "重置链接非法或已过期",
-		})
-		return
-	}
-	password := common.GenerateVerificationCode(12)
-	err = model.ResetUserPasswordByEmail(req.Email, password)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.DeleteKey(req.Email, common.PasswordResetPurpose)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    password,
 	})
 	return
 }

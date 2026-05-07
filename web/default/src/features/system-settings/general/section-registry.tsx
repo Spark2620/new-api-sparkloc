@@ -15,9 +15,6 @@ const GENERAL_SECTIONS = [
     build: (settings: GeneralSettings) => (
       <SystemInfoSection
         defaultValues={{
-          theme: {
-            frontend: settings['theme.frontend'] as 'default' | 'classic',
-          },
           Notice: settings.Notice,
           SystemName: settings.SystemName,
           Logo: settings.Logo,
@@ -36,14 +33,12 @@ const GENERAL_SECTIONS = [
   {
     id: 'quota',
     titleKey: 'Quota Settings',
-    descriptionKey: 'Configure user quota allocation and rewards',
+    descriptionKey: 'Configure user quota allocation',
     build: (settings: GeneralSettings) => (
       <QuotaSettingsSection
         defaultValues={{
           QuotaForNewUser: settings.QuotaForNewUser,
           PreConsumedQuota: settings.PreConsumedQuota,
-          QuotaForInviter: settings.QuotaForInviter,
-          QuotaForInvitee: settings.QuotaForInvitee,
           TopUpLink: settings.TopUpLink,
           'general_setting.docs_link': settings['general_setting.docs_link'],
           'quota_setting.enable_free_model_pre_consume':
@@ -85,8 +80,6 @@ const GENERAL_SECTIONS = [
       <CheckinSettingsSection
         defaultValues={{
           enabled: settings['checkin_setting.enabled'],
-          minQuota: settings['checkin_setting.min_quota'],
-          maxQuota: settings['checkin_setting.max_quota'],
         }}
       />
     ),

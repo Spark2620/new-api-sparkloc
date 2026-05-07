@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -29,6 +30,24 @@ func buildMaskedTokenResponses(tokens []*model.Token) []*model.Token {
 		maskedTokens = append(maskedTokens, buildMaskedTokenResponse(token))
 	}
 	return maskedTokens
+}
+
+func validateTokenChannelGroup(group string) error {
+	channelId, ok := model.ParseChannelGroupName(group)
+	if !ok {
+		return nil
+	}
+	channel, err := model.GetChannelById(channelId, false)
+	if err != nil {
+		return fmt.Errorf("channel %d not found", channelId)
+	}
+	if channel == nil || !constant.IsSupportedChannelType(channel.Type) {
+		return fmt.Errorf("channel %d is not available", channelId)
+	}
+	if channel.Status != common.ChannelStatusEnabled {
+		return fmt.Errorf("channel %d is disabled", channelId)
+	}
+	return nil
 }
 
 func GetAllTokens(c *gin.Context) {
@@ -201,6 +220,16 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
+	if token.Group != "auto" && !strings.HasPrefix(token.Group, "channel-") {
+		common.ApiError(c, fmt.Errorf("please select an enabled channel"))
+		return
+	}
+	if token.Group != "auto" {
+		if err := validateTokenChannelGroup(token.Group); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	}
 	key, err := common.GenerateKey()
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
@@ -221,6 +250,9 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
+	}
+	if strings.HasPrefix(cleanToken.Group, "channel-") {
+		cleanToken.CrossGroupRetry = false
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -297,8 +329,21 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
 		cleanToken.ModelLimits = token.ModelLimits
 		cleanToken.AllowIps = token.AllowIps
+		if token.Group != "auto" && !strings.HasPrefix(token.Group, "channel-") {
+			common.ApiError(c, fmt.Errorf("please select an enabled channel"))
+			return
+		}
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+	}
+	if strings.HasPrefix(cleanToken.Group, "channel-") {
+		cleanToken.CrossGroupRetry = false
+	}
+	if cleanToken.Group != "auto" {
+		if err := validateTokenChannelGroup(cleanToken.Group); err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	}
 	err = cleanToken.Update()
 	if err != nil {

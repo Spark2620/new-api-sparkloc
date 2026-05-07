@@ -49,9 +49,14 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 		relayInfo.UsingGroup = autoGroup.(string)
 	}
 
-	// check user group special ratio
-	userGroupRatio, ok := ratio_setting.GetGroupGroupRatio(relayInfo.UserGroup, relayInfo.UsingGroup)
-	if ok {
+	if channelId, ok := model.ParseChannelGroupName(relayInfo.UsingGroup); ok {
+		channel, err := model.GetChannelById(channelId, false)
+		if err == nil && channel != nil && channel.SupplyRatio > 0 {
+			groupRatioInfo.GroupRatio = channel.SupplyRatio
+		} else {
+			groupRatioInfo.GroupRatio = 1
+		}
+	} else if userGroupRatio, ok := ratio_setting.GetGroupGroupRatio(relayInfo.UserGroup, relayInfo.UsingGroup); ok {
 		// user group special ratio
 		groupRatioInfo.GroupSpecialRatio = userGroupRatio
 		groupRatioInfo.GroupRatio = userGroupRatio

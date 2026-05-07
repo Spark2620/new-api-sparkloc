@@ -54,6 +54,7 @@ export function TagBatchEditDialog({
   const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
     queryKey: ['groups'],
     queryFn: getGroups,
+    enabled: open,
   })
 
   // Transform groups to multi-select options

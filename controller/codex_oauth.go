@@ -87,6 +87,9 @@ func startCodexOAuthWithChannelID(c *gin.Context, channelID int) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "channel type is not Codex"})
 			return
 		}
+		if !ensureChannelOwner(c, ch) {
+			return
+		}
 	}
 
 	flow, err := service.CreateCodexOAuthAuthorizationFlow()
@@ -158,6 +161,9 @@ func completeCodexOAuthWithChannelID(c *gin.Context, channelID int) {
 		}
 		if ch.Type != constant.ChannelTypeCodex {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "channel type is not Codex"})
+			return
+		}
+		if !ensureChannelOwner(c, ch) {
 			return
 		}
 		channelProxy = ch.GetSetting().Proxy

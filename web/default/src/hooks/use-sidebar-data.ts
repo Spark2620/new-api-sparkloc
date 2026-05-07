@@ -3,6 +3,7 @@ import {
   Activity,
   Key,
   FileText,
+  Coins,
   Wallet,
   Box,
   Users,
@@ -11,7 +12,6 @@ import {
   Command,
   Radio,
   FlaskConical,
-  MessageSquare,
   CreditCard,
   ListTodo,
   Settings,
@@ -42,11 +42,6 @@ export function useSidebarData(): SidebarData {
             url: '/playground',
             icon: FlaskConical,
           },
-          {
-            title: t('Chat'),
-            icon: MessageSquare,
-            type: 'chat-presets',
-          },
         ],
       },
       {
@@ -69,9 +64,19 @@ export function useSidebarData(): SidebarData {
             icon: Key,
           },
           {
+            title: t('Channels'),
+            url: '/channels',
+            icon: Radio,
+          },
+          {
             title: t('Usage Logs'),
             url: '/usage-logs/common',
             icon: FileText,
+          },
+          {
+            title: t('Channel Earnings'),
+            url: '/channel-earnings',
+            icon: Coins,
           },
           {
             title: t('Task Logs'),
@@ -102,11 +107,6 @@ export function useSidebarData(): SidebarData {
         id: 'admin',
         title: t('Admin'),
         items: [
-          {
-            title: t('Channels'),
-            url: '/channels',
-            icon: Radio,
-          },
           {
             title: t('Models'),
             url: '/models/metadata',

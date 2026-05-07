@@ -59,16 +59,7 @@ func normalizeChannelTestEndpoint(channel *model.Channel, modelName, endpointTyp
 
 func testChannel(channel *model.Channel, testModel string, endpointType string, isStream bool) testResult {
 	tik := time.Now()
-	var unsupportedTestChannelTypes = []int{
-		constant.ChannelTypeMidjourney,
-		constant.ChannelTypeMidjourneyPlus,
-		constant.ChannelTypeSunoAPI,
-		constant.ChannelTypeKling,
-		constant.ChannelTypeJimeng,
-		constant.ChannelTypeDoubaoVideo,
-		constant.ChannelTypeVidu,
-	}
-	if lo.Contains(unsupportedTestChannelTypes, channel.Type) {
+	if !constant.IsSupportedChannelType(channel.Type) {
 		channelTypeName := constant.GetChannelTypeName(channel.Type)
 		return testResult{
 			localErr: fmt.Errorf("%s channel test is not supported", channelTypeName),
@@ -157,8 +148,11 @@ func testChannel(channel *model.Channel, testModel string, endpointType string, 
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set("channel", channel.Type)
 	c.Set("base_url", channel.GetBaseURL())
-	group, _ := model.GetUserGroup(1, false)
-	c.Set("group", group)
+	userGroup, _ := model.GetUserGroup(1, false)
+	channelGroup := model.ChannelGroupName(channel.Id)
+	common.SetContextKey(c, constant.ContextKeyUserGroup, userGroup)
+	common.SetContextKey(c, constant.ContextKeyUsingGroup, channelGroup)
+	common.SetContextKey(c, constant.ContextKeyTokenGroup, channelGroup)
 
 	newAPIError := middleware.SetupContextForSelectedChannel(c, channel, testModel)
 	if newAPIError != nil {
@@ -527,17 +521,33 @@ func settleTestQuota(info *relaycommon.RelayInfo, priceData types.PriceData, usa
 		}
 	}
 
+	groupRatio := priceData.GroupRatioInfo.GroupRatio
+	if groupRatio == 0 && priceData.GroupRatioInfo.GroupSpecialRatio == 0 && !priceData.GroupRatioInfo.HasSpecialRatio {
+		groupRatio = 1
+	}
+
 	quota := 0
 	if !priceData.UsePrice {
 		quota = usage.PromptTokens + int(math.Round(float64(usage.CompletionTokens)*priceData.CompletionRatio))
-		quota = int(math.Round(float64(quota) * priceData.ModelRatio))
-		if priceData.ModelRatio != 0 && quota <= 0 {
+		quota = int(math.Round(float64(quota) * priceData.ModelRatio * groupRatio))
+		for _, otherRatio := range priceData.OtherRatios {
+			if otherRatio > 0 {
+				quota = int(math.Round(float64(quota) * otherRatio))
+			}
+		}
+		if priceData.ModelRatio != 0 && groupRatio != 0 && quota <= 0 {
 			quota = 1
 		}
 		return quota, nil
 	}
 
-	return int(priceData.ModelPrice * common.QuotaPerUnit), nil
+	quota = int(math.Round(priceData.ModelPrice * common.QuotaPerUnit * groupRatio))
+	for _, otherRatio := range priceData.OtherRatios {
+		if otherRatio > 0 {
+			quota = int(math.Round(float64(quota) * otherRatio))
+		}
+	}
+	return quota, nil
 }
 
 func buildTestLogOther(c *gin.Context, info *relaycommon.RelayInfo, priceData types.PriceData, usage *dto.Usage, tieredResult *billingexpr.TieredResult) map[string]interface{} {
@@ -825,6 +835,9 @@ func TestChannel(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
+	}
+	if !ensureChannelOwner(c, channel) {
+		return
 	}
 	//defer func() {
 	//	if channel.ChannelInfo.IsMultiKey {

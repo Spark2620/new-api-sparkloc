@@ -97,6 +97,11 @@ func (m Properties) Value() (driver.Value, error) {
 }
 
 type TaskPrivateData struct {
+	RequestId            string `json:"request_id,omitempty"`
+	DailyCreditConsumed  int    `json:"daily_credit_consumed,omitempty"`
+	EarnedCreditConsumed int    `json:"earned_credit_consumed,omitempty"`
+	LegacyQuotaConsumed  int    `json:"legacy_quota_consumed,omitempty"`
+	ChannelPayoutSettled bool   `json:"channel_payout_settled,omitempty"`
 	Key            string `json:"key,omitempty"`
 	UpstreamTaskID string `json:"upstream_task_id,omitempty"` // 上游真实 task ID
 	ResultURL      string `json:"result_url,omitempty"`       // 任务成功后的结果 URL（视频地址等）

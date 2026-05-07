@@ -9,7 +9,6 @@ import {
 } from './section-registry.tsx'
 
 const defaultGeneralSettings: GeneralSettings = {
-  'theme.frontend': 'default',
   Notice: '',
   SystemName: 'New API',
   Logo: '',
@@ -38,8 +37,6 @@ const defaultGeneralSettings: GeneralSettings = {
   DemoSiteEnabled: false,
   SelfUseModeEnabled: false,
   'checkin_setting.enabled': false,
-  'checkin_setting.min_quota': 1000,
-  'checkin_setting.max_quota': 10000,
   'channel_affinity_setting.enabled': false,
   'channel_affinity_setting.switch_on_success': true,
   'channel_affinity_setting.max_entries': 100000,

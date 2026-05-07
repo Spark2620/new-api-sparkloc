@@ -17,6 +17,9 @@ func RouteTag(tag string) gin.HandlerFunc {
 }
 
 func SetUpLogger(server *gin.Engine) {
+	if !common.GinAccessLogEnabled {
+		return
+	}
 	server.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		var requestID string
 		if param.Keys != nil {

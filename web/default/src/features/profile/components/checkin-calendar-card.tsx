@@ -95,6 +95,16 @@ export function CheckinCalendarCard({
       0
     )
   }, [checkinData?.stats?.records])
+  const currentAvailableQuota = checkinData?.stats?.available_quota ?? 0
+  const currentDailyCredit = checkinData?.stats?.daily_credit ?? 0
+  const currentEarnedCredit = checkinData?.stats?.earned_credit ?? 0
+  const dailyCreditResetAt = useMemo(() => {
+    const expiresAt = checkinData?.stats?.daily_credit_expires_at ?? 0
+    if (expiresAt <= 0) {
+      return null
+    }
+    return dayjs(expiresAt * 1000).format('MM-DD HH:mm')
+  }, [checkinData?.stats?.daily_credit_expires_at])
 
   const todayString = useMemo(() => {
     const d = new Date()
@@ -296,7 +306,9 @@ export function CheckinCalendarCard({
                 <p className='text-muted-foreground mt-1 line-clamp-2 text-xs sm:text-sm'>
                   {checkedToday && todayAward !== undefined
                     ? `${t('Today')} +${formatQuotaWithCurrency(todayAward)}`
-                    : t('Check in daily to receive random quota rewards')}
+                    : t(
+                        'Check in daily to receive community credit based on trust level and leaderboard score'
+                      )}
                 </p>
               </div>
             </Button>
@@ -449,13 +461,58 @@ export function CheckinCalendarCard({
                   {t('You can only check in once per day')}
                 </div>
 
+                <div className='grid gap-2 sm:grid-cols-3'>
+                  <div className='bg-muted/30 rounded-lg border p-3'>
+                    <div className='text-muted-foreground text-[11px]'>
+                      {t('Available balance')}
+                    </div>
+                    <div className='mt-1 text-sm font-semibold'>
+                      {formatQuotaWithCurrency(currentAvailableQuota, {
+                        digitsLarge: 0,
+                      })}
+                    </div>
+                  </div>
+                  <div className='bg-muted/30 rounded-lg border p-3'>
+                    <div className='text-muted-foreground text-[11px]'>
+                      {t('Current daily credit')}
+                    </div>
+                    <div className='mt-1 text-sm font-semibold'>
+                      {formatQuotaWithCurrency(currentDailyCredit, {
+                        digitsLarge: 0,
+                      })}
+                    </div>
+                  </div>
+                  <div className='bg-muted/30 rounded-lg border p-3'>
+                    <div className='text-muted-foreground text-[11px]'>
+                      {t('Channel earnings balance')}
+                    </div>
+                    <div className='mt-1 text-sm font-semibold'>
+                      {formatQuotaWithCurrency(currentEarnedCredit, {
+                        digitsLarge: 0,
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {dailyCreditResetAt ? (
+                  <div className='text-muted-foreground text-center text-[11px]'>
+                    {t('Daily check-in credit resets at {{time}}', {
+                      time: dailyCreditResetAt,
+                    })}
+                  </div>
+                ) : null}
+
                 <div className='bg-muted/30 text-muted-foreground rounded-lg border p-3 text-xs'>
                   <ul className='list-disc space-y-1 pl-5'>
                     <li>
-                      {t('Check in daily to receive random quota rewards')}
+                      {t(
+                        'Check in daily to receive community credit based on trust level and leaderboard score'
+                      )}
                     </li>
+                    <li>{t('Trust level rewards: TL0=3, TL1=5, TL2=8, TL3/TL4=10')}</li>
+                    <li>{t('Leaderboard reward: +1 per 100 points, capped at +15')}</li>
                     <li>
-                      {t('Rewards will be added directly to your balance')}
+                      {t('Daily check-in credit resets at the configured daily reset time')}
                     </li>
                     <li>{t('Do not repeat check-in; only once per day')}</li>
                   </ul>

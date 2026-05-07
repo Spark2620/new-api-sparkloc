@@ -25,6 +25,7 @@ export function Pricing() {
     vendors,
     groupRatio,
     usableGroup,
+    channelGroups,
     endpointMap,
     autoGroups,
     isLoading,
@@ -79,10 +80,10 @@ export function Pricing() {
 
   const availableGroups = useMemo(
     () =>
-      Object.keys(usableGroup || {}).filter(
+      Object.keys(channelGroups || {}).filter(
         (g) => !EXCLUDED_GROUPS.includes(g)
       ),
-    [usableGroup]
+    [channelGroups]
   )
 
   const handleClearAll = useCallback(() => {
@@ -110,6 +111,7 @@ export function Pricing() {
           usdExchangeRate={usdExchangeRate}
           tokenUnit={tokenUnit}
           showRechargePrice={showRechargePrice}
+          channelGroups={channelGroups}
         />
       )
     }
@@ -120,9 +122,10 @@ export function Pricing() {
         priceRate={priceRate}
         usdExchangeRate={usdExchangeRate}
         tokenUnit={tokenUnit}
-        showRechargePrice={showRechargePrice}
-        onModelClick={handleModelClick}
-      />
+          showRechargePrice={showRechargePrice}
+          channelGroups={channelGroups}
+          onModelClick={handleModelClick}
+        />
     )
   }
 
@@ -194,6 +197,7 @@ export function Pricing() {
               vendors={vendors || []}
               groups={availableGroups}
               groupRatios={groupRatio}
+              channelGroups={channelGroups}
               tags={availableTags}
               models={models || []}
               hasActiveFilters={hasActiveFilters}
@@ -226,6 +230,7 @@ export function Pricing() {
                 vendors={vendors || []}
                 groups={availableGroups}
                 groupRatios={groupRatio}
+                channelGroups={channelGroups}
                 tags={availableTags}
                 models={models || []}
                 hasActiveFilters={hasActiveFilters}
@@ -246,6 +251,7 @@ export function Pricing() {
               model={selectedModel}
               groupRatio={groupRatio || {}}
               usableGroup={usableGroup || {}}
+              channelGroups={channelGroups || {}}
               endpointMap={
                 (endpointMap as Record<
                   string,

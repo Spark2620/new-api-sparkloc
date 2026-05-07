@@ -82,6 +82,10 @@ export function SidebarModulesSection({
         title: t('Usage logs'),
         description: t('Detailed request logs for investigations.'),
       },
+      channelEarnings: {
+        title: t('Channel Earnings'),
+        description: t('View requests that used your channels and the balance transferred back to you.'),
+      },
       midjourney: {
         title: t('Drawing logs'),
         description: t('History of Midjourney-style image tasks.'),

@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/samber/lo"
 	"gorm.io/gorm"
@@ -25,20 +27,71 @@ type Ability struct {
 
 type AbilityWithChannel struct {
 	Ability
-	ChannelType int `json:"channel_type"`
+	ChannelType int     `json:"channel_type"`
+	SupplyRatio float64 `json:"supply_ratio"`
 }
 
 func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
-	var abilities []AbilityWithChannel
-	err := DB.Table("abilities").
-		Select("abilities.*, channels.type as channel_type").
-		Joins("left join channels on abilities.channel_id = channels.id").
-		Where("abilities.enabled = ?", true).
-		Scan(&abilities).Error
+	var channels []*Channel
+	err := DB.Where("status = ?", common.ChannelStatusEnabled).Find(&channels).Error
+	if err != nil {
+		return nil, err
+	}
+
+	abilities := make([]AbilityWithChannel, 0)
+	for _, channel := range channels {
+		if channel == nil || !constant.IsSupportedChannelType(channel.Type) {
+			continue
+		}
+		supplyRatio := channel.SupplyRatio
+		if supplyRatio <= 0 {
+			supplyRatio = 1
+		}
+		for _, modelName := range channel.GetModels() {
+			modelName = strings.TrimSpace(modelName)
+			if modelName == "" {
+				continue
+			}
+			abilities = append(abilities, AbilityWithChannel{
+				Ability: Ability{
+					Group:     ChannelGroupName(channel.Id),
+					Model:     modelName,
+					ChannelId: channel.Id,
+					Enabled:   true,
+					Priority:  channel.Priority,
+					Weight:    uint(channel.GetWeight()),
+					Tag:       channel.Tag,
+				},
+				ChannelType: channel.Type,
+				SupplyRatio: supplyRatio,
+			})
+		}
+	}
+
 	return abilities, err
 }
 
 func GetGroupEnabledModels(group string) []string {
+	if channelId, ok := ParseChannelGroupName(group); ok {
+		channel, err := GetChannelById(channelId, false)
+		if err != nil || channel == nil || channel.Status != common.ChannelStatusEnabled || !constant.IsSupportedChannelType(channel.Type) {
+			return []string{}
+		}
+		modelSet := make(map[string]struct{})
+		models := make([]string, 0)
+		for _, modelName := range channel.GetModels() {
+			modelName = strings.TrimSpace(modelName)
+			if modelName == "" {
+				continue
+			}
+			if _, ok := modelSet[modelName]; ok {
+				continue
+			}
+			modelSet[modelName] = struct{}{}
+			models = append(models, modelName)
+		}
+		return models
+	}
 	var models []string
 	// Find distinct models
 	DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
@@ -46,9 +99,25 @@ func GetGroupEnabledModels(group string) []string {
 }
 
 func GetEnabledModels() []string {
-	var models []string
-	// Find distinct models
-	DB.Table("abilities").Where("enabled = ?", true).Distinct("model").Pluck("model", &models)
+	abilities, err := GetAllEnableAbilityWithChannels()
+	if err != nil {
+		var models []string
+		DB.Table("abilities").Where("enabled = ?", true).Distinct("model").Pluck("model", &models)
+		return models
+	}
+	modelSet := make(map[string]struct{})
+	models := make([]string, 0, len(abilities))
+	for _, ability := range abilities {
+		modelName := strings.TrimSpace(ability.Model)
+		if modelName == "" {
+			continue
+		}
+		if _, ok := modelSet[modelName]; ok {
+			continue
+		}
+		modelSet[modelName] = struct{}{}
+		models = append(models, modelName)
+	}
 	return models
 }
 
@@ -104,6 +173,23 @@ func getChannelQuery(group string, model string, retry int) (*gorm.DB, error) {
 }
 
 func GetChannel(group string, model string, retry int) (*Channel, error) {
+	if channelId, ok := ParseChannelGroupName(group); ok {
+		channel, err := GetChannelById(channelId, true)
+		if err != nil {
+			return nil, err
+		}
+		if channel == nil || channel.Status != common.ChannelStatusEnabled || !constant.IsSupportedChannelType(channel.Type) {
+			return nil, nil
+		}
+		if model != "" && !common.StringsContains(channel.GetModels(), model) {
+			normalizedModel := ratio_setting.FormatMatchingModelName(model)
+			if normalizedModel == "" || !common.StringsContains(channel.GetModels(), normalizedModel) {
+				return nil, nil
+			}
+		}
+		return channel, nil
+	}
+
 	var abilities []Ability
 
 	var err error = nil
@@ -140,12 +226,15 @@ func GetChannel(group string, model string, retry int) (*Channel, error) {
 		return nil, nil
 	}
 	err = DB.First(&channel, "id = ?", channel.Id).Error
+	if err == nil && !constant.IsSupportedChannelType(channel.Type) {
+		return nil, nil
+	}
 	return &channel, err
 }
 
 func (channel *Channel) AddAbilities(tx *gorm.DB) error {
 	models_ := strings.Split(channel.Models, ",")
-	groups_ := strings.Split(channel.Group, ",")
+	groups_ := strings.Split(channel.EffectiveGroup(), ",")
 	abilitySet := make(map[string]struct{})
 	abilities := make([]Ability, 0, len(models_))
 	for _, model := range models_ {
@@ -217,7 +306,7 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 
 	// Then add new abilities
 	models_ := strings.Split(channel.Models, ",")
-	groups_ := strings.Split(channel.Group, ",")
+	groups_ := strings.Split(channel.EffectiveGroup(), ",")
 	abilitySet := make(map[string]struct{})
 	abilities := make([]Ability, 0, len(models_))
 	for _, model := range models_ {

@@ -121,4 +121,5 @@ export interface GroupOption {
   value: string
   ratio: number
   desc?: string
+  creator?: string
 }

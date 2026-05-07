@@ -85,35 +85,44 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       other: 'Region config: {"default": "us-central1"}',
     },
   },
-  43: {
-    id: 43,
-    name: CHANNEL_TYPES[43],
-    icon: 'deepseek',
-    defaultBaseUrl: 'https://api.deepseek.com',
+  33: {
+    id: 33,
+    name: CHANNEL_TYPES[33],
+    icon: 'aws',
+    requiresRegion: true,
     hints: {
-      key: 'DeepSeek API Key',
-      models: 'deepseek-chat,deepseek-coder',
+      key: 'AccessKey / SecretAccessKey / Region or APIKey / Region',
+      models: 'anthropic.claude-3-sonnet-20240229-v1:0',
     },
   },
-  20: {
-    id: 20,
-    name: CHANNEL_TYPES[20],
-    icon: 'openrouter',
-    defaultBaseUrl: 'https://openrouter.ai/api',
+  45: {
+    id: 45,
+    name: CHANNEL_TYPES[45],
+    icon: 'volcengine',
+    defaultBaseUrl: 'https://ark.cn-beijing.volces.com',
     hints: {
-      key: 'OpenRouter API Key',
-      models: 'Use model IDs from OpenRouter',
+      key: 'VolcEngine API Key',
+      models: 'Doubao model IDs',
     },
   },
-  56: {
-    id: 56,
-    name: CHANNEL_TYPES[56],
-    icon: 'replicate',
-    defaultBaseUrl: 'https://api.replicate.com',
+  48: {
+    id: 48,
+    name: CHANNEL_TYPES[48],
+    icon: 'xai',
+    defaultBaseUrl: 'https://api.x.ai',
     hints: {
-      key: 'Replicate API Token',
-      models: 'Replicate model IDs',
-      baseUrl: 'Default: https://api.replicate.com',
+      key: 'xAI API Key',
+      models: 'grok model IDs',
+    },
+  },
+  57: {
+    id: 57,
+    name: CHANNEL_TYPES[57],
+    icon: 'openai',
+    defaultBaseUrl: 'https://chatgpt.com',
+    hints: {
+      key: 'Codex OAuth JSON credential',
+      models: 'codex model IDs',
     },
   },
 }

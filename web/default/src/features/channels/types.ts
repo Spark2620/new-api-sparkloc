@@ -34,6 +34,9 @@ export const channelSchema = z.object({
   balance_updated_time: z.number(),
   models: z.string().default(''),
   group: z.string().default('default'),
+  owner_user_id: z.number().default(0),
+  owner_username: z.string().default(''),
+  supply_ratio: z.number().default(1),
   used_quota: z.number().default(0),
   model_mapping: z.string().nullish(),
   status_code_mapping: z.string().nullish(),
@@ -64,16 +67,12 @@ export type Channel = z.infer<typeof channelSchema>
 export interface ChannelSettings {
   force_format?: boolean
   thinking_to_content?: boolean
-  proxy?: string
   pass_through_body_enabled?: boolean
-  system_prompt?: string
-  system_prompt_override?: boolean
 }
 
 export interface ChannelOtherSettings {
   azure_responses_version?: string
   vertex_key_type?: 'json' | 'api_key'
-  openrouter_enterprise?: boolean
   aws_key_type?: 'ak_sk' | 'api_key'
   allow_service_tier?: boolean
   disable_store?: boolean
@@ -82,11 +81,6 @@ export interface ChannelOtherSettings {
   allow_inference_geo?: boolean
   allow_speed?: boolean
   claude_beta_query?: boolean
-  upstream_model_update_check_enabled?: boolean
-  upstream_model_update_auto_sync_enabled?: boolean
-  upstream_model_update_ignored_models?: string[]
-  upstream_model_update_last_check_time?: number
-  upstream_model_update_last_detected_models?: string[]
 }
 
 // ============================================================================
@@ -200,6 +194,7 @@ export interface GetChannelsParams {
   status?: string // 'enabled', 'disabled', or empty for all
   type?: number
   group?: string
+  owned?: boolean
   id_sort?: boolean
   tag_mode?: boolean
 }
@@ -210,6 +205,7 @@ export interface SearchChannelsParams {
   model?: string
   status?: string
   type?: number
+  owned?: boolean
   id_sort?: boolean
   tag_mode?: boolean
   p?: number
@@ -272,6 +268,7 @@ export interface ChannelFormData {
   openai_organization?: string
   models: string
   group: string
+  supply_ratio: number
   model_mapping?: string
   priority?: number
   weight?: number

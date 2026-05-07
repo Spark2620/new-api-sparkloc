@@ -26,16 +26,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTableColumnHeader } from '@/components/data-table/column-header'
-import { GroupBadge } from '@/components/group-badge'
 import {
   StatusBadge,
   dotColorMap,
   textColorMap,
 } from '@/components/status-badge'
 import { getCodexUsage } from '../api'
-import { CHANNEL_STATUS_CONFIG, MODEL_FETCHABLE_TYPES } from '../constants'
+import { CHANNEL_STATUS_CONFIG } from '../constants'
 import {
   formatBalance,
   formatRelativeTime,
@@ -46,40 +44,18 @@ import {
   getResponseTimeConfig,
   isMultiKeyChannel,
   parseModelsList,
-  parseGroupsList,
   parseChannelSettings,
-  handleUpdateChannelField,
-  handleUpdateTagField,
   handleUpdateChannelBalance,
   isTagAggregateRow,
   type TagRow,
 } from '../lib'
-import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
 import type { Channel } from '../types'
-import { useChannels } from './channels-provider'
 import { DataTableRowActions } from './data-table-row-actions'
 import { DataTableTagRowActions } from './data-table-tag-row-actions'
 import {
   CodexUsageDialog,
   type CodexUsageDialogData,
 } from './dialogs/codex-usage-dialog'
-import { NumericSpinnerInput } from './numeric-spinner-input'
-
-function parseIonetMeta(otherInfo: string | null | undefined): null | {
-  source?: string
-  deployment_id?: string
-} {
-  if (!otherInfo) return null
-  try {
-    const parsed = JSON.parse(otherInfo)
-    if (parsed && typeof parsed === 'object') {
-      return parsed
-    }
-  } catch {
-    return null
-  }
-  return null
-}
 
 /**
  * Render limited items with "and X more" indicator
@@ -107,174 +83,6 @@ function renderLimitedItems(
         />
       )}
     </div>
-  )
-}
-
-/**
- * Upstream update tags (+N / -N) shown on channel name for model-fetchable channels
- */
-function UpstreamUpdateTags({ channel }: { channel: Channel }) {
-  const { upstream, setCurrentRow } = useChannels()
-  if (!MODEL_FETCHABLE_TYPES.has(channel.type)) return null
-
-  const meta = parseUpstreamUpdateMeta(channel.settings)
-  if (!meta.enabled) return null
-
-  const addCount = meta.pendingAddModels.length
-  const removeCount = meta.pendingRemoveModels.length
-  if (addCount === 0 && removeCount === 0) return null
-
-  return (
-    <div className='flex items-center gap-0.5'>
-      {addCount > 0 && (
-        <StatusBadge
-          label={`+${addCount}`}
-          variant='success'
-          size='sm'
-          copyable={false}
-          className='cursor-pointer'
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation()
-            setCurrentRow(channel)
-            upstream.openModal(
-              channel,
-              meta.pendingAddModels,
-              meta.pendingRemoveModels,
-              'add'
-            )
-          }}
-        />
-      )}
-      {removeCount > 0 && (
-        <StatusBadge
-          label={`-${removeCount}`}
-          variant='danger'
-          size='sm'
-          copyable={false}
-          className='cursor-pointer'
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation()
-            setCurrentRow(channel)
-            upstream.openModal(
-              channel,
-              meta.pendingAddModels,
-              meta.pendingRemoveModels,
-              'remove'
-            )
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-/**
- * Priority cell component with inline editing
- */
-function PriorityCell({ channel }: { channel: Channel }) {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const isTagRow = isTagAggregateRow(channel)
-  const priority = channel.priority
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [pendingValue, setPendingValue] = useState<number | null>(null)
-
-  // Tag row - editable with confirmation for all tag channels
-  if (isTagRow) {
-    const tag = channel.tag || ''
-    const channelCount = channel.children?.length || 0
-
-    return (
-      <>
-        <NumericSpinnerInput
-          value={priority ?? 0}
-          onChange={(value) => {
-            setPendingValue(value)
-            setConfirmOpen(true)
-          }}
-          min={-999}
-        />
-        <ConfirmDialog
-          open={confirmOpen}
-          onOpenChange={setConfirmOpen}
-          title={t('Confirm Batch Update')}
-          desc={`This will update the priority to ${pendingValue} for all ${channelCount} channel(s) with tag "${tag}". Continue?`}
-          confirmText='Update'
-          handleConfirm={() => {
-            if (pendingValue !== null) {
-              handleUpdateTagField(tag, 'priority', pendingValue, queryClient)
-            }
-            setConfirmOpen(false)
-          }}
-        />
-      </>
-    )
-  }
-
-  // Regular channel row - editable
-  return (
-    <NumericSpinnerInput
-      value={priority ?? 0}
-      onChange={(value) => {
-        handleUpdateChannelField(channel.id, 'priority', value, queryClient)
-      }}
-      min={-999}
-    />
-  )
-}
-
-/**
- * Weight cell component with inline editing
- */
-function WeightCell({ channel }: { channel: Channel }) {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const isTagRow = isTagAggregateRow(channel)
-  const weight = channel.weight
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [pendingValue, setPendingValue] = useState<number | null>(null)
-
-  // Tag row - editable with confirmation for all tag channels
-  if (isTagRow) {
-    const tag = channel.tag || ''
-    const channelCount = channel.children?.length || 0
-
-    return (
-      <>
-        <NumericSpinnerInput
-          value={weight ?? 0}
-          onChange={(value) => {
-            setPendingValue(value)
-            setConfirmOpen(true)
-          }}
-          min={0}
-        />
-        <ConfirmDialog
-          open={confirmOpen}
-          onOpenChange={setConfirmOpen}
-          title={t('Confirm Batch Update')}
-          desc={`This will update the weight to ${pendingValue} for all ${channelCount} channel(s) with tag "${tag}". Continue?`}
-          confirmText='Update'
-          handleConfirm={() => {
-            if (pendingValue !== null) {
-              handleUpdateTagField(tag, 'weight', pendingValue, queryClient)
-            }
-            setConfirmOpen(false)
-          }}
-        />
-      </>
-    )
-  }
-
-  // Regular channel row - editable
-  return (
-    <NumericSpinnerInput
-      value={weight ?? 0}
-      onChange={(value) => {
-        handleUpdateChannelField(channel.id, 'weight', value, queryClient)
-      }}
-      min={0}
-    />
   )
 }
 
@@ -561,22 +369,7 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
                     copyable={false}
                   />
                 )}
-                <UpstreamUpdateTags channel={channel} />
               </div>
-              {channel.remark && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className='text-muted-foreground text-xs'>
-                        {truncateText(channel.remark, 40)}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side='bottom' className='max-w-xs'>
-                      {channel.remark}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
             </div>
           </div>
         )
@@ -618,13 +411,6 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
             ? t('Multi-key: Random rotation')
             : t('Multi-key: Polling rotation')
 
-        const ionetMeta = parseIonetMeta(channel.other_info)
-        const isIonet = ionetMeta?.source === 'ionet'
-        const deploymentId =
-          typeof ionetMeta?.deployment_id === 'string'
-            ? ionetMeta?.deployment_id
-            : undefined
-
         return (
           <div className='flex items-center gap-2'>
             <div className='flex items-center gap-1.5'>
@@ -650,41 +436,6 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
               size='sm'
               copyable={false}
             />
-            {isIonet && (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span
-                      className='flex cursor-pointer items-center gap-1.5 text-xs font-medium'
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (!deploymentId) return
-                        const targetUrl = `/console/deployment?deployment_id=${deploymentId}`
-                        window.open(targetUrl, '_blank', 'noopener')
-                      }}
-                    >
-                      <span className='text-muted-foreground/30'>·</span>
-                      <span className={cn(textColorMap.purple)}>IO.NET</span>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side='top'>
-                    <div className='max-w-xs space-y-1'>
-                      <div className='text-xs'>
-                        {t('From IO.NET deployment')}
-                      </div>
-                      {deploymentId && (
-                        <div className='text-muted-foreground font-mono text-xs'>
-                          {t('Deployment ID')}: {deploymentId}
-                        </div>
-                      )}
-                      <div className='text-muted-foreground text-xs'>
-                        {t('Click to open deployment')}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </div>
         )
       },
@@ -868,47 +619,6 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
       enableSorting: false,
     },
 
-    // Group column
-    {
-      accessorKey: 'group',
-      meta: { label: t('Groups'), mobileHidden: true },
-      header: t('Groups'),
-      cell: ({ row }) => {
-        const group = row.getValue('group') as string
-        const groupArray = parseGroupsList(group)
-
-        const groupBadges = groupArray.map((g) => (
-          <GroupBadge key={g} group={g} size='sm' />
-        ))
-
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>{renderLimitedItems(groupBadges, 2)}</div>
-              </TooltipTrigger>
-              {groupArray.length > 2 && (
-                <TooltipContent
-                  side='top'
-                  className='border-border bg-popover max-h-48 max-w-[320px] overflow-y-auto p-2'
-                >
-                  <div className='flex flex-wrap gap-1'>{groupBadges}</div>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        )
-      },
-      filterFn: (row, id, value) => {
-        if (!value || value.length === 0 || value.includes('all')) return true
-        const group = row.getValue(id) as string
-        const groupArray = parseGroupsList(group)
-        return groupArray.some((g) => value.includes(g))
-      },
-      size: 150,
-      enableSorting: false,
-    },
-
     // Tag column
     {
       accessorKey: 'tag',
@@ -925,25 +635,46 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
       enableSorting: false,
     },
 
-    // Priority column
+    // Creator column
     {
-      accessorKey: 'priority',
-      meta: { label: t('Priority'), mobileHidden: true },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('Priority')} />
-      ),
-      cell: ({ row }) => <PriorityCell channel={row.original} />,
-      size: 100,
+      accessorKey: 'owner_username',
+      meta: { label: t('Channel Creator'), mobileHidden: true },
+      header: t('Channel Creator'),
+      cell: ({ row }) => {
+        const channel = row.original
+        const creator =
+          channel.owner_username ||
+          (channel.owner_user_id > 0 ? `#${channel.owner_user_id}` : '-')
+
+        return (
+          <span className='text-muted-foreground text-xs font-medium'>
+            {creator}
+          </span>
+        )
+      },
+      size: 120,
+      enableSorting: false,
     },
 
-    // Weight column
+    // Supply ratio column
     {
-      accessorKey: 'weight',
-      meta: { label: t('Weight'), mobileHidden: true },
-      header: t('Weight'),
-      cell: ({ row }) => <WeightCell channel={row.original} />,
-      size: 90,
-      enableSorting: false,
+      accessorKey: 'supply_ratio',
+      meta: { label: t('Model ratio'), mobileHidden: true },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('Model ratio')} />
+      ),
+      cell: ({ row }) => {
+        const ratio = Number(row.getValue('supply_ratio') || 1)
+        return (
+          <StatusBadge
+            label={`${ratio.toFixed(2).replace(/\.?0+$/, '')}x`}
+            variant={ratio > 1 ? 'warning' : 'success'}
+            size='sm'
+            copyable={false}
+          />
+        )
+      },
+      size: 120,
     },
 
     // Balance column (Used/Remaining)

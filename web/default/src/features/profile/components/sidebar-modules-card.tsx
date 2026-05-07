@@ -74,6 +74,11 @@ export function SidebarModulesCard() {
           description: t('API usage records'),
         },
         {
+          key: 'channelEarnings',
+          title: t('Channel Earnings'),
+          description: t('View earnings from requests that used your channels'),
+        },
+        {
           key: 'midjourney',
           title: t('Drawing Logs'),
           description: t('Drawing task records'),

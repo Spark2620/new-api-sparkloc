@@ -11,24 +11,8 @@ import { LogSettingsSection } from './log-settings-section'
 import { NoticeSection } from './notice-section'
 import { PerformanceSection } from './performance-section'
 import { SidebarModulesSection } from './sidebar-modules-section'
-import { UpdateCheckerSection } from './update-checker-section'
 
 const MAINTENANCE_SECTIONS = [
-  {
-    id: 'update-checker',
-    titleKey: 'System maintenance',
-    descriptionKey: 'Check for system updates',
-    build: (
-      _settings: MaintenanceSettings,
-      currentVersion?: string | null,
-      startTime?: number | null
-    ) => (
-      <UpdateCheckerSection
-        currentVersion={currentVersion}
-        startTime={startTime}
-      />
-    ),
-  },
   {
     id: 'notice',
     titleKey: 'System Notice',
@@ -116,7 +100,7 @@ const maintenanceRegistry = createSectionRegistry<
   [string | null | undefined, number | null | undefined]
 >({
   sections: MAINTENANCE_SECTIONS,
-  defaultSection: 'update-checker',
+  defaultSection: 'notice',
   basePath: '/system-settings/maintenance',
   urlStyle: 'path',
 })

@@ -165,8 +165,8 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
-	case "EmailDomainRestrictionEnabled":
-		if option.Value == "true" && len(common.EmailDomainWhitelist) == 0 {
+	case "legacy_email_domain_restriction_enabled":
+		if option.Value == "true" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "无法启用邮箱域名限制，请先填入限制的邮箱域名！",
@@ -199,10 +199,10 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "theme.frontend":
-		if option.Value != "default" && option.Value != "classic" {
+		if option.Value != "default" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无效的主题值，可选值：default（新版前端）、classic（经典前端）",
+				"message": "invalid frontend theme, only default is supported",
 			})
 			return
 		}

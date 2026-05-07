@@ -22,7 +22,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
+    fallbackLng: 'zh',
     supportedLngs: ['en', 'zh', 'fr', 'ru', 'ja', 'vi'],
     load: 'languageOnly', // Convert zh-CN -> zh
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
@@ -31,8 +31,9 @@ i18n
       escapeValue: false, // not needed for react as it escapes by default
     },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       caches: ['localStorage'],
+      lookupLocalStorage: 'i18nextLng',
     },
   })
 

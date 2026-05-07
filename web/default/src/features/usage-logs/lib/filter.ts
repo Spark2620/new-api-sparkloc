@@ -34,7 +34,9 @@ export function buildSearchParams(
         ...baseParams,
         ...(commonFilters.model && { model: commonFilters.model }),
         ...(commonFilters.token && { token: commonFilters.token }),
-        ...(commonFilters.group && { group: commonFilters.group }),
+        ...(commonFilters.channelName && {
+          channel_name: commonFilters.channelName,
+        }),
         ...(commonFilters.username && { username: commonFilters.username }),
         ...(commonFilters.requestId && { requestId: commonFilters.requestId }),
       }

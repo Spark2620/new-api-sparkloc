@@ -6,41 +6,52 @@ import (
 	"github.com/QuantumNous/new-api/model"
 )
 
-// ---------------------------------------------------------------------------
-// FundingSource — 资金来源接口（钱包 or 订阅）
-// ---------------------------------------------------------------------------
-
-// FundingSource 抽象了预扣费的资金来源。
 type FundingSource interface {
-	// Source 返回资金来源标识："wallet" 或 "subscription"
 	Source() string
-	// PreConsume 从该资金来源预扣 amount 额度
 	PreConsume(amount int) error
-	// Settle 根据差额调整资金来源（正数补扣，负数退还）
 	Settle(delta int) error
-	// Refund 退还所有预扣费
 	Refund() error
 }
 
-// ---------------------------------------------------------------------------
-// WalletFunding — 钱包资金来源实现
-// ---------------------------------------------------------------------------
-
 type WalletFunding struct {
-	userId   int
-	consumed int // 实际预扣的用户额度
+	userId         int
+	requestId      string
+	dailyConsumed  int
+	earnedConsumed int
+	legacyConsumed int
 }
 
 func (w *WalletFunding) Source() string { return BillingSourceWallet }
 
 func (w *WalletFunding) PreConsume(amount int) error {
+	return w.consume(amount)
+}
+
+func (w *WalletFunding) consume(amount int) error {
 	if amount <= 0 {
 		return nil
 	}
-	if err := model.DecreaseUserQuota(w.userId, amount, false); err != nil {
+	community, err := model.ConsumeCommunityCredits(w.requestId, w.userId, amount)
+	if err != nil {
 		return err
 	}
-	w.consumed = amount
+	legacyAmount := amount
+	if community != nil {
+		legacyAmount = community.Shortage
+	}
+	if legacyAmount > 0 {
+		if err := model.DecreaseUserQuota(w.userId, legacyAmount, false); err != nil {
+			if community != nil && community.TotalAmount > 0 {
+				_, _ = model.RefundCommunityCredits(w.requestId, w.userId, community.TotalAmount)
+			}
+			return err
+		}
+		w.legacyConsumed += legacyAmount
+	}
+	if community != nil {
+		w.dailyConsumed += community.DailyAmount
+		w.earnedConsumed += community.EarnedAmount
+	}
 	return nil
 }
 
@@ -49,32 +60,77 @@ func (w *WalletFunding) Settle(delta int) error {
 		return nil
 	}
 	if delta > 0 {
-		return model.DecreaseUserQuota(w.userId, delta, false)
+		return w.consume(delta)
 	}
-	return model.IncreaseUserQuota(w.userId, -delta, false)
+	return w.refund(-delta)
 }
 
 func (w *WalletFunding) Refund() error {
-	if w.consumed <= 0 {
-		return nil
-	}
-	// IncreaseUserQuota 是 quota += N 的非幂等操作，不能重试，否则会多退额度。
-	// 订阅的 RefundSubscriptionPreConsume 有 requestId 幂等保护所以可以重试。
-	return model.IncreaseUserQuota(w.userId, w.consumed, false)
+	return w.refund(w.TotalConsumed())
 }
 
-// ---------------------------------------------------------------------------
-// SubscriptionFunding — 订阅资金来源实现
-// ---------------------------------------------------------------------------
+func (w *WalletFunding) refund(amount int) error {
+	if amount <= 0 {
+		return nil
+	}
+	remaining := amount
+	if w.legacyConsumed > 0 {
+		refundLegacy := w.legacyConsumed
+		if refundLegacy > remaining {
+			refundLegacy = remaining
+		}
+		if refundLegacy > 0 {
+			if err := model.IncreaseUserQuota(w.userId, refundLegacy, false); err != nil {
+				return err
+			}
+			w.legacyConsumed -= refundLegacy
+			remaining -= refundLegacy
+		}
+	}
+	if remaining <= 0 {
+		return nil
+	}
+	community, err := model.RefundCommunityCredits(w.requestId, w.userId, remaining)
+	if err != nil {
+		return err
+	}
+	if community != nil {
+		w.dailyConsumed -= community.DailyAmount
+		if w.dailyConsumed < 0 {
+			w.dailyConsumed = 0
+		}
+		w.earnedConsumed -= community.EarnedAmount
+		if w.earnedConsumed < 0 {
+			w.earnedConsumed = 0
+		}
+	}
+	return nil
+}
+
+func (w *WalletFunding) TotalConsumed() int {
+	return w.dailyConsumed + w.earnedConsumed + w.legacyConsumed
+}
+
+func (w *WalletFunding) DailyConsumed() int {
+	return w.dailyConsumed
+}
+
+func (w *WalletFunding) EarnedConsumed() int {
+	return w.earnedConsumed
+}
+
+func (w *WalletFunding) LegacyConsumed() int {
+	return w.legacyConsumed
+}
 
 type SubscriptionFunding struct {
 	requestId      string
 	userId         int
 	modelName      string
-	amount         int64 // 预扣的订阅额度（subConsume）
+	amount         int64
 	subscriptionId int
 	preConsumed    int64
-	// 以下字段在 PreConsume 成功后填充，供 RelayInfo 同步使用
+
 	AmountTotal     int64
 	AmountUsedAfter int64
 	PlanId          int
@@ -84,7 +140,6 @@ type SubscriptionFunding struct {
 func (s *SubscriptionFunding) Source() string { return BillingSourceSubscription }
 
 func (s *SubscriptionFunding) PreConsume(_ int) error {
-	// amount 参数被忽略，使用内部 s.amount（已在构造时根据 preConsumedQuota 计算）
 	res, err := model.PreConsumeUserSubscription(s.requestId, s.userId, s.modelName, 0, s.amount)
 	if err != nil {
 		return err
@@ -93,7 +148,6 @@ func (s *SubscriptionFunding) PreConsume(_ int) error {
 	s.preConsumed = res.PreConsumed
 	s.AmountTotal = res.AmountTotal
 	s.AmountUsedAfter = res.AmountUsedAfter
-	// 获取订阅计划信息
 	if planInfo, err := model.GetSubscriptionPlanInfoByUserSubscriptionId(res.UserSubscriptionId); err == nil && planInfo != nil {
 		s.PlanId = planInfo.PlanId
 		s.PlanTitle = planInfo.PlanTitle
@@ -117,8 +171,6 @@ func (s *SubscriptionFunding) Refund() error {
 	})
 }
 
-// refundWithRetry 尝试多次执行退款操作以提高成功率，只能用于基于事务的退款函数！！！！！！
-// try to refund with retries, only for refund functions based on transactions!!!
 func refundWithRetry(fn func() error) error {
 	if fn == nil {
 		return nil

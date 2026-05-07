@@ -1,7 +1,5 @@
 import type { IntegrationSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
-import { EmailSettingsSection } from './email-settings-section'
-import { IoNetDeploymentSettingsSection } from './ionet-deployment-settings-section'
 import { MonitoringSettingsSection } from './monitoring-settings-section'
 import { PaymentSettingsSection } from './payment-settings-section'
 import { WorkerSettingsSection } from './worker-settings-section'
@@ -70,24 +68,6 @@ const INTEGRATIONS_SECTIONS = [
     ),
   },
   {
-    id: 'email',
-    titleKey: 'SMTP Email',
-    descriptionKey: 'Configure SMTP email settings',
-    build: (settings: IntegrationSettings) => (
-      <EmailSettingsSection
-        defaultValues={{
-          SMTPServer: settings.SMTPServer,
-          SMTPPort: settings.SMTPPort,
-          SMTPAccount: settings.SMTPAccount,
-          SMTPFrom: settings.SMTPFrom,
-          SMTPToken: settings.SMTPToken,
-          SMTPSSLEnabled: settings.SMTPSSLEnabled,
-          SMTPForceAuthLogin: settings.SMTPForceAuthLogin,
-        }}
-      />
-    ),
-  },
-  {
     id: 'worker',
     titleKey: 'Worker Proxy',
     descriptionKey: 'Configure worker service settings',
@@ -98,19 +78,6 @@ const INTEGRATIONS_SECTIONS = [
           WorkerValidKey: settings.WorkerValidKey,
           WorkerAllowHttpImageRequestEnabled:
             settings.WorkerAllowHttpImageRequestEnabled,
-        }}
-      />
-    ),
-  },
-  {
-    id: 'ionet',
-    titleKey: 'io.net Deployments',
-    descriptionKey: 'Configure IoNet model deployment settings',
-    build: (settings: IntegrationSettings) => (
-      <IoNetDeploymentSettingsSection
-        defaultValues={{
-          enabled: settings['model_deployment.ionet.enabled'],
-          apiKey: settings['model_deployment.ionet.api_key'],
         }}
       />
     ),

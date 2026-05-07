@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { type Row } from '@tanstack/react-table'
 import {
   MoreHorizontal,
-  Boxes,
   Pencil,
   TestTube,
   Gauge,
@@ -14,7 +13,6 @@ import {
   PowerOff,
   Key,
   Trash2,
-  RefreshCw,
   Loader2,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -33,7 +31,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { MODEL_FETCHABLE_TYPES } from '../constants'
 import {
   channelsQueryKeys,
   handleDeleteChannel,
@@ -42,7 +39,6 @@ import {
   isChannelEnabled,
   isMultiKeyChannel,
 } from '../lib'
-import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
 import type { Channel } from '../types'
 import { useChannels } from './channels-provider'
 
@@ -53,7 +49,7 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
   const channel = row.original
-  const { setOpen, setCurrentRow, upstream } = useChannels()
+  const { setOpen, setCurrentRow } = useChannels()
   const queryClient = useQueryClient()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
@@ -92,11 +88,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const handleFetchModels = () => {
     setCurrentRow(channel)
     setOpen('fetch-models')
-  }
-
-  const handleManageOllamaModels = () => {
-    setCurrentRow(channel)
-    setOpen('ollama-models')
   }
 
   const handleCopy = () => {
@@ -212,43 +203,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
               <Download size={16} />
             </DropdownMenuShortcut>
           </DropdownMenuItem>
-
-          {/* Detect Upstream Updates (only for fetchable channel types) */}
-          {MODEL_FETCHABLE_TYPES.has(channel.type) && (
-            <DropdownMenuItem
-              onClick={() => {
-                const meta = parseUpstreamUpdateMeta(channel.settings)
-                if (
-                  meta.pendingAddModels.length > 0 ||
-                  meta.pendingRemoveModels.length > 0
-                ) {
-                  upstream.openModal(
-                    channel,
-                    meta.pendingAddModels,
-                    meta.pendingRemoveModels,
-                    meta.pendingAddModels.length > 0 ? 'add' : 'remove'
-                  )
-                } else {
-                  upstream.detectChannelUpdates(channel)
-                }
-              }}
-            >
-              {t('Upstream Updates')}
-              <DropdownMenuShortcut>
-                <RefreshCw size={16} />
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-          )}
-
-          {/* Ollama Models (only for Ollama channels) */}
-          {channel.type === 4 && (
-            <DropdownMenuItem onClick={handleManageOllamaModels}>
-              {t('Manage Ollama Models')}
-              <DropdownMenuShortcut>
-                <Boxes size={16} />
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-          )}
 
           <DropdownMenuSeparator />
 

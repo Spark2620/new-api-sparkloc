@@ -3,6 +3,7 @@ package service
 import (
 	"strings"
 
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 )
@@ -37,6 +38,9 @@ func GetUserUsableGroups(userGroup string) map[string]string {
 }
 
 func GroupInUserUsableGroups(userGroup, groupName string) bool {
+	if strings.HasPrefix(groupName, "channel-") {
+		return true
+	}
 	_, ok := GetUserUsableGroups(userGroup)[groupName]
 	return ok
 }
@@ -57,6 +61,13 @@ func GetUserAutoGroup(userGroup string) []string {
 // userGroup 用户分组
 // group 需要获取倍率的分组
 func GetUserGroupRatio(userGroup, group string) float64 {
+	if channelId, ok := model.ParseChannelGroupName(group); ok {
+		channel, err := model.GetChannelById(channelId, false)
+		if err == nil && channel != nil && channel.SupplyRatio > 0 {
+			return channel.SupplyRatio
+		}
+		return 1
+	}
 	ratio, ok := ratio_setting.GetGroupGroupRatio(userGroup, group)
 	if ok {
 		return ratio

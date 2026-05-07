@@ -11,17 +11,13 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
 const schema = z.object({
   enabled: z.boolean(),
-  minQuota: z.coerce.number().int().min(0),
-  maxQuota: z.coerce.number().int().min(0),
 })
 
 type Values = z.infer<typeof schema>
@@ -31,8 +27,6 @@ export function CheckinSettingsSection({
 }: {
   defaultValues: {
     enabled: boolean
-    minQuota: number
-    maxQuota: number
   }
 }) {
   const { t } = useTranslation()
@@ -42,13 +36,10 @@ export function CheckinSettingsSection({
     resolver: zodResolver(schema) as unknown as Resolver<Values>,
     defaultValues: {
       enabled: defaultValues.enabled,
-      minQuota: defaultValues.minQuota,
-      maxQuota: defaultValues.maxQuota,
     },
   })
 
   const { isDirty, isSubmitting } = form.formState
-  const enabled = form.watch('enabled')
 
   async function onSubmit(values: Values) {
     const updates: Array<{ key: string; value: string }> = []
@@ -57,20 +48,6 @@ export function CheckinSettingsSection({
       updates.push({
         key: 'checkin_setting.enabled',
         value: String(values.enabled),
-      })
-    }
-
-    if (values.minQuota !== defaultValues.minQuota) {
-      updates.push({
-        key: 'checkin_setting.min_quota',
-        value: String(values.minQuota),
-      })
-    }
-
-    if (values.maxQuota !== defaultValues.maxQuota) {
-      updates.push({
-        key: 'checkin_setting.max_quota',
-        value: String(values.maxQuota),
       })
     }
 
@@ -123,53 +100,21 @@ export function CheckinSettingsSection({
             )}
           />
 
-          {enabled && (
-            <div className='grid gap-6 sm:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='minQuota'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Minimum check-in quota')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        placeholder={t('1000')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('Minimum quota amount awarded for check-in')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+          <div className='rounded-lg border border-dashed p-4'>
+            <div className='text-sm font-medium'>{t('Daily reward rules')}</div>
+            <ul className='text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm'>
+              <li>
+                {t(
+                  'Daily reward is based on community trust level and leaderboard score'
                 )}
-              />
-
-              <FormField
-                control={form.control}
-                name='maxQuota'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Maximum check-in quota')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        placeholder={t('10000')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('Maximum quota amount awarded for check-in')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          )}
+              </li>
+              <li>{t('Trust level rewards: TL0=3, TL1=5, TL2=8, TL3/TL4=10')}</li>
+              <li>{t('Leaderboard reward: +1 per 100 points, capped at +15')}</li>
+              <li>
+                {t('Daily check-in credit resets at the configured daily reset time')}
+              </li>
+            </ul>
+          </div>
 
           <Button
             type='submit'

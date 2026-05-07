@@ -81,6 +81,13 @@ func InitEnv() {
 	// Initialize variables from constants.go that were using environment variables
 	DebugEnabled = os.Getenv("DEBUG") == "true"
 	MemoryCacheEnabled = os.Getenv("MEMORY_CACHE_ENABLED") == "true"
+	LogLevel = strings.ToLower(strings.TrimSpace(GetEnvOrDefaultString("LOG_LEVEL", "info")))
+	switch LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		LogLevel = "info"
+	}
+	GinAccessLogEnabled = GetEnvOrDefaultBool("GIN_ACCESS_LOG_ENABLED", true)
 	IsMasterNode = os.Getenv("NODE_TYPE") != "slave"
 	NodeName = os.Getenv("NODE_NAME")
 	TLSInsecureSkipVerify = GetEnvOrDefaultBool("TLS_INSECURE_SKIP_VERIFY", false)
@@ -108,14 +115,46 @@ func InitEnv() {
 	// Initialize string variables with GetEnvOrDefaultString
 	GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 	CohereSafetySetting = GetEnvOrDefaultString("COHERE_SAFETY_SETTING", "NONE")
+	SparklocAuthorizeEndpoint = GetEnvOrDefaultString("SPARKLOC_AUTHORIZE_ENDPOINT", SparklocAuthorizeEndpoint)
+	SparklocTokenEndpoint = GetEnvOrDefaultString("SPARKLOC_TOKEN_ENDPOINT", SparklocTokenEndpoint)
+	SparklocUserInfoEndpoint = GetEnvOrDefaultString("SPARKLOC_USERINFO_ENDPOINT", SparklocUserInfoEndpoint)
+	SparklocClientId = GetEnvOrDefaultString("SPARKLOC_CLIENT_ID", "")
+	SparklocClientSecret = GetEnvOrDefaultString("SPARKLOC_CLIENT_SECRET", "")
+	SparklocScopes = GetEnvOrDefaultString("SPARKLOC_SCOPES", SparklocScopes)
+	CommunityCreditEnabled = GetEnvOrDefaultBool("COMMUNITY_CREDIT_ENABLED", CommunityCreditEnabled)
+	CommunityCreditTimezone = GetEnvOrDefaultString("COMMUNITY_CREDIT_TIMEZONE", CommunityCreditTimezone)
+	CommunityCreditResetHour = GetEnvOrDefault("COMMUNITY_CREDIT_RESET_HOUR", CommunityCreditResetHour)
+	if CommunityCreditResetHour < 0 || CommunityCreditResetHour > 23 {
+		CommunityCreditResetHour = 4
+	}
+	CommunityDailyCreditMax = GetEnvOrDefault("COMMUNITY_DAILY_CREDIT_MAX", CommunityDailyCreditMax)
+	CommunityTLBonusJSON = GetEnvOrDefaultString("COMMUNITY_TL_BONUS_JSON", CommunityTLBonusJSON)
+	CommunityTLBonus = GetEnvOrDefaultIntMap("COMMUNITY_TL_BONUS_JSON", CommunityTLBonus)
+	CommunityLeaderboardStepPoints = GetEnvOrDefault("COMMUNITY_LEADERBOARD_STEP_POINTS", CommunityLeaderboardStepPoints)
+	CommunityLeaderboardBonusMax = GetEnvOrDefault("COMMUNITY_LEADERBOARD_BONUS_MAX", CommunityLeaderboardBonusMax)
+	DiscourseBaseURL = strings.TrimRight(GetEnvOrDefaultString("DISCOURSE_BASE_URL", DiscourseBaseURL), "/")
+	DiscourseAPIKey = GetEnvOrDefaultString("DISCOURSE_API_KEY", DiscourseAPIKey)
+	DiscourseAPIUsername = GetEnvOrDefaultString("DISCOURSE_API_USERNAME", DiscourseAPIUsername)
+	DiscourseProfileURLTemplate = GetEnvOrDefaultString("DISCOURSE_PROFILE_URL_TEMPLATE", DiscourseProfileURLTemplate)
+	DiscourseLeaderboardURLTemplate = GetEnvOrDefaultString("DISCOURSE_LEADERBOARD_URL_TEMPLATE", DiscourseLeaderboardURLTemplate)
+	DiscourseTrustLevelJSONPath = GetEnvOrDefaultString("DISCOURSE_TRUST_LEVEL_JSON_PATH", DiscourseTrustLevelJSONPath)
+	DiscourseLeaderboardScoreJSONPath = GetEnvOrDefaultString("DISCOURSE_LEADERBOARD_SCORE_JSON_PATH", DiscourseLeaderboardScoreJSONPath)
+	DiscourseTimeoutSeconds = GetEnvOrDefault("DISCOURSE_TIMEOUT_SECONDS", DiscourseTimeoutSeconds)
+	ChannelPayoutFromDailyRate = GetEnvOrDefaultFloat64("CHANNEL_PAYOUT_FROM_DAILY_RATE", ChannelPayoutFromDailyRate)
+	ChannelPayoutFromEarnedRate = GetEnvOrDefaultFloat64("CHANNEL_PAYOUT_FROM_EARNED_RATE", ChannelPayoutFromEarnedRate)
+	ChannelPayoutSelfUseEnabled = GetEnvOrDefaultBool("CHANNEL_PAYOUT_SELF_USE_ENABLED", ChannelPayoutSelfUseEnabled)
+	ChannelPayoutConsumerOwnerDailyCap = GetEnvOrDefault("CHANNEL_PAYOUT_CONSUMER_OWNER_DAILY_CAP", ChannelPayoutConsumerOwnerDailyCap)
+	ChannelPayoutConsumerChannelDailyCap = GetEnvOrDefault("CHANNEL_PAYOUT_CONSUMER_CHANNEL_DAILY_CAP", ChannelPayoutConsumerChannelDailyCap)
+	ChannelPayoutOwnerDailyDailySourceCap = GetEnvOrDefault("CHANNEL_PAYOUT_OWNER_DAILY_DAILY_SOURCE_CAP", ChannelPayoutOwnerDailyDailySourceCap)
+	ChannelEarnedCreditTTLDays = GetEnvOrDefault("CHANNEL_EARNED_CREDIT_TTL_DAYS", ChannelEarnedCreditTTLDays)
 
 	// Initialize rate limit variables
 	GlobalApiRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_API_RATE_LIMIT_ENABLE", true)
 	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 180)
 	GlobalApiRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_API_RATE_LIMIT_DURATION", 180))
 
-	GlobalWebRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_WEB_RATE_LIMIT_ENABLE", true)
-	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 60)
+	GlobalWebRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_WEB_RATE_LIMIT_ENABLE", false)
+	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 600)
 	GlobalWebRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT_DURATION", 180))
 
 	CriticalRateLimitEnable = GetEnvOrDefaultBool("CRITICAL_RATE_LIMIT_ENABLE", true)

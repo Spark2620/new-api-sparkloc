@@ -15,6 +15,7 @@ import { useDebounce, useMediaQuery } from '@/hooks'
 import { useTranslation } from 'react-i18next'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
+import { useIsAdmin } from '@/hooks/use-admin'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { Input } from '@/components/ui/input'
 import {
@@ -35,7 +36,7 @@ import {
 } from '@/components/data-table'
 import { DataTablePagination } from '@/components/data-table/pagination'
 import { PageFooterPortal } from '@/components/layout'
-import { getChannels, searchChannels, getGroups } from '../api'
+import { getChannels, searchChannels } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
   CHANNEL_STATUS,
@@ -64,6 +65,8 @@ function isDisabledChannelRow(channel: Channel) {
 export function ChannelsTable() {
   const { t } = useTranslation()
   const { enableTagMode, idSort } = useChannels()
+  const isAdmin = useIsAdmin()
+  const tagModeEnabled = isAdmin && enableTagMode
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   // Table state
@@ -95,7 +98,6 @@ export function ChannelsTable() {
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
       { columnId: 'type', searchKey: 'type', type: 'array' },
-      { columnId: 'group', searchKey: 'group', type: 'array' },
       { columnId: 'model', searchKey: 'model', type: 'string' },
     ],
   })
@@ -105,8 +107,6 @@ export function ChannelsTable() {
     (columnFilters.find((f) => f.id === 'status')?.value as string[]) || []
   const typeFilter =
     (columnFilters.find((f) => f.id === 'type')?.value as string[]) || []
-  const groupFilter =
-    (columnFilters.find((f) => f.id === 'group')?.value as string[]) || []
   const modelFilterFromUrl =
     (columnFilters.find((f) => f.id === 'model')?.value as string) || ''
 
@@ -136,31 +136,13 @@ export function ChannelsTable() {
   // Determine whether to use search or regular list API
   const shouldSearch = Boolean(globalFilter?.trim() || modelFilter.trim())
 
-  // Fetch groups for filter
-  const { data: groupsData } = useQuery({
-    queryKey: ['groups'],
-    queryFn: getGroups,
-  })
-
-  const groupOptions = useMemo(
-    () =>
-      (groupsData?.data || []).map((g) => ({
-        label: g,
-        value: g,
-      })),
-    [groupsData]
-  )
-
   // Fetch channels data
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, isLoading, isFetching } = useQuery({
     queryKey: channelsQueryKeys.list({
+      owned: true,
       keyword: globalFilter,
       model: modelFilter,
-      group:
-        groupFilter.length > 0 && !groupFilter.includes('all')
-          ? groupFilter[0]
-          : undefined,
       status:
         statusFilter.length > 0 && !statusFilter.includes('all')
           ? statusFilter[0]
@@ -169,7 +151,7 @@ export function ChannelsTable() {
         typeFilter.length > 0 && !typeFilter.includes('all')
           ? Number(typeFilter[0])
           : undefined,
-      tag_mode: enableTagMode,
+      tag_mode: tagModeEnabled,
       id_sort: idSort,
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
@@ -177,12 +159,9 @@ export function ChannelsTable() {
     queryFn: async () => {
       if (shouldSearch) {
         return searchChannels({
+          owned: true,
           keyword: globalFilter,
           model: modelFilter,
-          group:
-            groupFilter.length > 0 && !groupFilter.includes('all')
-              ? groupFilter[0]
-              : undefined,
           status:
             statusFilter.length > 0 && !statusFilter.includes('all')
               ? statusFilter[0]
@@ -191,17 +170,14 @@ export function ChannelsTable() {
             typeFilter.length > 0 && !typeFilter.includes('all')
               ? Number(typeFilter[0])
               : undefined,
-          tag_mode: enableTagMode,
+          tag_mode: tagModeEnabled,
           id_sort: idSort,
           p: pagination.pageIndex + 1,
           page_size: pagination.pageSize,
         })
       } else {
         return getChannels({
-          group:
-            groupFilter.length > 0 && !groupFilter.includes('all')
-              ? groupFilter[0]
-              : undefined,
+          owned: true,
           status:
             statusFilter.length > 0 && !statusFilter.includes('all')
               ? statusFilter[0]
@@ -210,7 +186,7 @@ export function ChannelsTable() {
             typeFilter.length > 0 && !typeFilter.includes('all')
               ? Number(typeFilter[0])
               : undefined,
-          tag_mode: enableTagMode,
+          tag_mode: tagModeEnabled,
           id_sort: idSort,
           p: pagination.pageIndex + 1,
           page_size: pagination.pageSize,
@@ -224,12 +200,12 @@ export function ChannelsTable() {
   const channels = useMemo(() => {
     const rawChannels = data?.data?.items || []
 
-    if (enableTagMode && rawChannels.length > 0) {
+    if (tagModeEnabled && rawChannels.length > 0) {
       return aggregateChannelsByTag(rawChannels)
     }
 
     return rawChannels
-  }, [data, enableTagMode])
+  }, [data, tagModeEnabled])
 
   const totalCount = data?.data?.total || 0
   const typeCounts = data?.data?.type_counts
@@ -325,11 +301,6 @@ export function ChannelsTable() {
     ]
   }, [t, typeCounts, typeFilter])
 
-  const groupFilterOptions = [
-    { label: t('All Groups'), value: 'all' },
-    ...groupOptions,
-  ]
-
   return (
     <>
       <div className='space-y-3 sm:space-y-4'>
@@ -355,12 +326,6 @@ export function ChannelsTable() {
               columnId: 'type',
               title: t('Type'),
               options: typeFilterOptions,
-              singleSelect: true,
-            },
-            {
-              columnId: 'group',
-              title: t('Group'),
-              options: groupFilterOptions,
               singleSelect: true,
             },
           ]}

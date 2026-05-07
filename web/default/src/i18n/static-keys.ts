@@ -7,6 +7,16 @@ export const STATIC_I18N_KEYS = [
   'Pricing',
   'Docs',
   'About',
+  'Leaderboard',
+  'Consumption Ranking',
+  'Contribution Ranking',
+  'Total Consumption',
+  'Total Contribution',
+  'No leaderboard data',
+  'Track the most active users by total consumption and the top contributors by cumulative channel earnings.',
+  'No ranking data is available yet. Once users start consuming or contributing channels, rankings will appear here.',
+  'Channel ratio',
+  'You',
 
   // Workspace
   'System Settings',

@@ -91,10 +91,11 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 	if relayInfo.UsePrice {
 		return nil
 	}
-	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
+	userQuota, err := model.GetUserTotalWalletQuota(relayInfo.UserId)
 	if err != nil {
 		return err
 	}
+	relayInfo.UserQuota = userQuota
 
 	token, err := model.GetTokenByKey(strings.TrimPrefix(relayInfo.TokenKey, "sk-"), false)
 	if err != nil {
@@ -417,13 +418,40 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 		}
 	} else {
 		// Wallet
+		requestID := strings.TrimSpace(relayInfo.RequestId)
 		if quota > 0 {
-			err = model.DecreaseUserQuota(relayInfo.UserId, quota, false)
-		} else {
-			err = model.IncreaseUserQuota(relayInfo.UserId, -quota, false)
-		}
-		if err != nil {
-			return err
+			community, err := model.ConsumeCommunityCredits(requestID, relayInfo.UserId, quota)
+			if err != nil {
+				return err
+			}
+			legacyAmount := quota
+			if community != nil {
+				legacyAmount = community.Shortage
+			}
+			if legacyAmount > 0 {
+				if err := model.DecreaseUserQuota(relayInfo.UserId, legacyAmount, false); err != nil {
+					if community != nil && community.TotalAmount > 0 {
+						_, _ = model.RefundCommunityCredits(requestID, relayInfo.UserId, community.TotalAmount)
+					}
+					return err
+				}
+			}
+		} else if quota < 0 {
+			refundAmount := -quota
+			if requestID != "" {
+				community, err := model.RefundCommunityCredits(requestID, relayInfo.UserId, refundAmount)
+				if err != nil {
+					return err
+				}
+				if community != nil {
+					refundAmount -= community.TotalAmount
+				}
+			}
+			if refundAmount > 0 {
+				if err := model.IncreaseUserQuota(relayInfo.UserId, refundAmount, false); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -471,7 +499,7 @@ func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota int, preCon
 
 			notifyType := userSetting.NotifyType
 			if notifyType == "" {
-				notifyType = dto.NotifyTypeEmail
+				notifyType = dto.NotifyTypeNone
 			}
 
 			if notifyType == dto.NotifyTypeBark {
@@ -523,7 +551,7 @@ func checkAndSendSubscriptionQuotaNotify(relayInfo *relaycommon.RelayInfo) {
 		var values []interface{}
 		notifyType := userSetting.NotifyType
 		if notifyType == "" {
-			notifyType = dto.NotifyTypeEmail
+			notifyType = dto.NotifyTypeNone
 		}
 
 		if notifyType == dto.NotifyTypeBark {

@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TitledCard } from '@/components/ui/titled-card'
 import type { UserProfile } from '../types'
 import { AccessTokenDialog } from './dialogs/access-token-dialog'
-import { ChangePasswordDialog } from './dialogs/change-password-dialog'
 import { DeleteAccountDialog } from './dialogs/delete-account-dialog'
 
 // ============================================================================
@@ -22,7 +21,7 @@ interface ProfileSecurityCardProps {
   loading: boolean
 }
 
-type DialogKey = 'password' | 'token' | 'delete'
+type DialogKey = 'token' | 'delete'
 
 export function ProfileSecurityCard({
   profile,
@@ -51,13 +50,6 @@ export function ProfileSecurityCard({
 
   const securityActions = [
     {
-      icon: Shield,
-      title: t('Change Password'),
-      description: t('Update your password to keep your account secure'),
-      action: () => dialogs.open('password'),
-      variant: 'default' as const,
-    },
-    {
       icon: Key,
       title: t('Access Token'),
       description: t('Generate and manage your API access token'),
@@ -80,7 +72,7 @@ export function ProfileSecurityCard({
         description={t('Manage your security settings and account access')}
         icon={<Shield className='h-4 w-4' />}
       >
-          <div className='grid grid-cols-1 gap-2.5 sm:gap-3 md:grid-cols-3'>
+          <div className='grid grid-cols-1 gap-2.5 sm:gap-3 md:grid-cols-2'>
             {securityActions.map((item) => (
               <button
                 key={item.title}
@@ -113,14 +105,6 @@ export function ProfileSecurityCard({
       </TitledCard>
 
       {/* Dialogs */}
-      <ChangePasswordDialog
-        open={dialogs.isOpen('password')}
-        onOpenChange={(open) =>
-          open ? dialogs.open('password') : dialogs.close('password')
-        }
-        username={profile.username}
-      />
-
       <AccessTokenDialog
         open={dialogs.isOpen('token')}
         onOpenChange={(open) =>

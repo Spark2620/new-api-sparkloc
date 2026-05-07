@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
-import type { PricingModel, TokenUnit } from '../types'
+import type { PricingChannelGroup, PricingModel, TokenUnit } from '../types'
 import { ModelCard } from './model-card'
 
 export interface ModelCardGridProps {
@@ -13,6 +13,7 @@ export interface ModelCardGridProps {
   usdExchangeRate?: number
   tokenUnit?: TokenUnit
   showRechargePrice?: boolean
+  channelGroups?: Record<string, PricingChannelGroup>
 }
 
 export function ModelCardGrid(props: ModelCardGridProps) {
@@ -46,6 +47,7 @@ export function ModelCardGrid(props: ModelCardGridProps) {
             priceRate={props.priceRate}
             usdExchangeRate={props.usdExchangeRate}
             showRechargePrice={props.showRechargePrice}
+            channelGroups={props.channelGroups}
             onClick={() => props.onModelClick(model.model_name || '')}
           />
         ))}

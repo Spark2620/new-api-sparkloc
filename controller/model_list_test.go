@@ -173,6 +173,16 @@ func TestListModelsIncludesTieredBillingModel(t *testing.T) {
 		Group:    "default",
 		Status:   common.UserStatusEnabled,
 	}).Error)
+	require.NoError(t, db.Create(&model.Channel{
+		Id:          1,
+		Type:        constant.ChannelTypeOpenAI,
+		Key:         "sk-test",
+		Status:      common.ChannelStatusEnabled,
+		Name:        "Default OpenAI",
+		Models:      "zz-tiered-visible-model,zz-tiered-empty-expr-model,zz-tiered-missing-expr-model,zz-unpriced-model",
+		Group:       "default",
+		SupplyRatio: 1,
+	}).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
 		{Group: "default", Model: "zz-tiered-visible-model", ChannelId: 1, Enabled: true},
 		{Group: "default", Model: "zz-tiered-empty-expr-model", ChannelId: 1, Enabled: true},
@@ -239,4 +249,44 @@ func TestListModelsTokenLimitIncludesTieredBillingModel(t *testing.T) {
 	require.NotContains(t, ids, "zz-token-tiered-empty-expr-model")
 	require.NotContains(t, ids, "zz-token-tiered-missing-expr-model")
 	require.NotContains(t, ids, "zz-token-unpriced-model")
+}
+
+func TestListModelsUsesChannelGroupModelsWithoutAbilityRows(t *testing.T) {
+	withSelfUseModeDisabled(t)
+	withTieredBillingConfig(t, map[string]string{
+		"zz-channel-visible-model": "tiered_expr",
+	}, map[string]string{
+		"zz-channel-visible-model": `tier("base", p * 1 + c * 2)`,
+	})
+
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.Create(&model.User{
+		Id:       1002,
+		Username: "channel-model-list-user",
+		Password: "password",
+		Group:    "default",
+		Status:   common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&model.Channel{
+		Id:          2001,
+		Type:        constant.ChannelTypeOpenAI,
+		Key:         "sk-test",
+		Status:      common.ChannelStatusEnabled,
+		Name:        "Community OpenAI",
+		Models:      "zz-channel-visible-model,zz-channel-unpriced-model",
+		Group:       model.ChannelGroupName(2001),
+		SupplyRatio: 0.5,
+	}).Error)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	ctx.Set("id", 1002)
+	common.SetContextKey(ctx, constant.ContextKeyTokenGroup, model.ChannelGroupName(2001))
+
+	ListModels(ctx, constant.ChannelTypeOpenAI)
+
+	ids := decodeListModelsResponse(t, recorder)
+	require.Contains(t, ids, "zz-channel-visible-model")
+	require.NotContains(t, ids, "zz-channel-unpriced-model")
 }
